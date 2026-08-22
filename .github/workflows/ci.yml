@@ -143,6 +143,12 @@ jobs:
           done
       - name: Terraform plan-only safety check
         shell: bash
+        env:
+          # Dummy values are used only to satisfy provider configuration while
+          # enable_apply=false and refresh=false guarantee no Alibaba API call.
+          ALIBABA_CLOUD_ACCESS_KEY_ID: validation-only
+          ALIBABA_CLOUD_ACCESS_KEY_SECRET: validation-only
+          ALIBABA_CLOUD_REGION: cn-hangzhou
         run: |
           set -euo pipefail
           terraform -chdir="$TF_VALIDATION_ROOT/environments/foundation" plan \
