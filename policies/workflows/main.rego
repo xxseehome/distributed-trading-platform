@@ -10,7 +10,7 @@ deny contains msg if {
 }
 
 deny contains msg if {
-  some name, job
+  some name
   job := input.jobs[name]
   job.permissions["id-token"] == "write"
   not exchanges_alibaba_oidc(job)
@@ -18,7 +18,7 @@ deny contains msg if {
 }
 
 exchanges_alibaba_oidc(job) if {
-  some index, step
+  some index
   step := job.steps[index]
   contains(step.uses, "aliyun/configure-aliyun-credentials-action")
 }
