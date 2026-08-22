@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   quality:
@@ -123,6 +122,10 @@ jobs:
         run: >-
           docker run --rm -v "$PWD:/project" openpolicyagent/conftest:v0.63.0
           test /project/.github/workflows/ci.yml --policy /project/policies/ci
+      - name: Check workflow OIDC policy
+        run: >-
+          docker run --rm -v "$PWD:/project" openpolicyagent/conftest:v0.63.0
+          test /project/.github/workflows --policy /project/policies/workflows
       - name: Render and check Kubernetes policy
         shell: bash
         run: |
