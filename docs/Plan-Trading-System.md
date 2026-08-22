@@ -7,7 +7,7 @@
 > 定位：Low-Latency Trading Systems Production Operations Lab，不宣称真实交易所接入或纳秒级 HFT 性能。  
 > 原文件 `docs/PLAN - General.md` 保持不变。
 
-> 最近执行记录（2026-08-22）：GitHub Actions [run 32557291236](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32557291236) 已通过 Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、API/前端构建、镜像扫描和 GHCR 推送。为消除 Trivy 对 Starlette 的高危依赖告警，`backend/requirements.txt` 从 `starlette==0.52.1` 升级到 `starlette==1.3.1`；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。
+> 最近执行记录（2026-08-22）：GitHub Actions [run 32558083862](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32558083862) 已通过 Terraform fmt、validate、plan-only（隔离本地 backend）、Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、API/前端构建、镜像扫描和 GHCR 推送。为消除 Trivy 对 Starlette 的高危依赖告警，`backend/requirements.txt` 从 `starlette==0.52.1` 升级到 `starlette==1.3.1`；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。
 
 ## 1. 目标与总体架构
 
@@ -337,7 +337,7 @@ flowchart LR
 - [x] PR 阶段执行 Ruff、unit、integration、Gitleaks、Trivy、Syft 和 OPA/Conftest。
 - [ ] Integration 使用 Actions service containers 启动 Redis、Kafka 和 PostgreSQL。
 - [ ] 执行 Alembic migration upgrade 和 schema validation。
-- [ ] 执行 Terraform fmt、validate、test 和 plan。
+- [x] 执行 Terraform fmt、validate 和 plan-only（run `32558083862`，隔离本地 backend、`enable_apply=false`）；当前未增加 Terraform test 文件。
 - [ ] 保存不可变 Terraform plan artifact。
 - [ ] `infrastructure-apply` 审批后只 apply 已保存 plan。
 - [ ] 通过 Cloud Assistant 和 Ansible 配置节点。
