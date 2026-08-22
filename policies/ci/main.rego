@@ -11,31 +11,36 @@ deny contains msg if {
 }
 
 deny contains msg if {
-  not input.jobs.build.needs[_] == "quality"
+  not has_need("quality")
   msg := "build must depend on the quality gate"
 }
 
 deny contains msg if {
-  not input.jobs.build.needs[_] == "integration"
+  not has_need("integration")
   msg := "build must depend on the integration gate"
 }
 
 deny contains msg if {
-  not input.jobs.build.needs[_] == "gitleaks"
+  not has_need("gitleaks")
   msg := "build must depend on the Gitleaks gate"
 }
 
 deny contains msg if {
-  not input.jobs.build.needs[_] == "trivy"
+  not has_need("trivy")
   msg := "build must depend on the Trivy gate"
 }
 
 deny contains msg if {
-  not input.jobs.build.needs[_] == "syft"
+  not has_need("syft")
   msg := "build must depend on the Syft gate"
 }
 
 deny contains msg if {
-  not input.jobs.build.needs[_] == "opa"
+  not has_need("opa")
   msg := "build must depend on the OPA gate"
+}
+
+has_need(need) if {
+  some index
+  input.jobs.build.needs[index] == need
 }

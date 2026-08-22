@@ -60,7 +60,9 @@ jobs:
         with:
           scan-type: fs
           scan-ref: .
-          scanners: vuln,secret,misconfig
+          # Kustomize fragments are checked by OPA after rendering; Trivy scans
+          # dependencies and repository secrets here.
+          scanners: vuln,secret
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: 1
