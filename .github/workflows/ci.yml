@@ -117,22 +117,38 @@ jobs:
       - name: Terraform format check
         working-directory: terraform
         run: terraform fmt -check -recursive
+      - name: Prepare isolated local-backend validation copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          validation_root="$RUNNER_TEMP/terraform-validation"
+          cp -R terraform "$validation_root"
+          python3 - "$validation_root" <<'PY'
+          from pathlib import Path
+          import sys
+
+          root = Path(sys.argv[1])
+          for path in root.rglob("*.tf"):
+              lines = path.read_text().splitlines(keepends=True)
+              path.write_text("".join(line for line in lines if line.strip() != 'backend "oss" {}'))
+          PY
+          echo "TF_VALIDATION_ROOT=$validation_root" >> "$GITHUB_ENV"
       - name: Terraform init and validate
         shell: bash
         run: |
           set -euo pipefail
           for state in foundation primary dr; do
-            terraform -chdir="terraform/environments/${state}" init -backend=false -input=false
-            terraform -chdir="terraform/environments/${state}" validate
+            terraform -chdir="$TF_VALIDATION_ROOT/environments/${state}" init -input=false
+            terraform -chdir="$TF_VALIDATION_ROOT/environments/${state}" validate
           done
       - name: Terraform plan-only safety check
         shell: bash
         run: |
           set -euo pipefail
-          terraform -chdir=terraform/environments/foundation plan \
+          terraform -chdir="$TF_VALIDATION_ROOT/environments/foundation" plan \
             -refresh=false -input=false -var='enable_apply=false'
           for state in primary dr; do
-            terraform -chdir="terraform/environments/${state}" plan \
+            terraform -chdir="$TF_VALIDATION_ROOT/environments/${state}" plan \
               -refresh=false -input=false \
               -var='enable_apply=false' \
               -var='image_id=validation-placeholder' \
