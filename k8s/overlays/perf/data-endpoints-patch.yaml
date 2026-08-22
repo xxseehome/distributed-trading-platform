@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-api
+spec:
+  template:
+    spec:
+      containers:
+        - name: trading-api
+          env:
+            - name: REDIS_SENTINEL_SERVICE
+              value: redis-sentinel.nonprod-platform.svc.cluster.local
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka.nonprod-platform.svc.cluster.local:9092
+            - name: POSTGRES_HOST
+              value: postgres.nonprod-platform.svc.cluster.local
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trading-worker
+spec:
+  template:
+    spec:
+      containers:
+        - name: trading-worker
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: kafka.nonprod-platform.svc.cluster.local:9092
+            - name: POSTGRES_HOST
+              value: postgres.nonprod-platform.svc.cluster.local
+            - name: TRADING_SCHEMA
+              value: perf

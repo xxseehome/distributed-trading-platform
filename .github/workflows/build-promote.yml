@@ -1,0 +1,109 @@
+name: Build once and promote immutable digest
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  build:
+    name: Build and sign once
+    runs-on: ubuntu-latest
+    outputs:
+      api_digest: ${{ steps.api.outputs.digest }}
+      frontend_digest: ${{ steps.frontend.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: api
+        name: Build and push Trading API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/distributed-trading-api:${{ github.sha }}
+      - id: frontend
+        name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend:${{ github.sha }}
+      - uses: sigstore/cosign-installer@v3.7.0
+      - name: Sign immutable digests
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes "ghcr.io/${{ github.repository_owner }}/distributed-trading-api@${{ steps.api.outputs.digest }}"
+          cosign sign --yes "ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend@${{ steps.frontend.outputs.digest }}"
+
+  deploy-nonprod-data:
+    name: Deploy shared non-production data
+    needs: build
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure approved cluster access
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          test -n "$KUBECONFIG_B64"
+          printf '%s' "$KUBECONFIG_B64" | base64 --decode > "$RUNNER_TEMP/kubeconfig"
+          chmod 600 "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Apply shared data services
+        run: |
+          kubectl kustomize k8s/overlays/nonprod-data | kubectl apply -f -
+          kubectl -n nonprod-platform rollout status statefulset/redis --timeout=10m
+          kubectl -n nonprod-platform rollout status statefulset/kafka --timeout=10m
+          kubectl -n nonprod-platform rollout status statefulset/postgres --timeout=10m
+
+  promote:
+    name: Promote exact digest to ${{ matrix.environment }}
+    needs: [build, deploy-nonprod-data]
+    strategy:
+      max-parallel: 1
+      matrix:
+        environment: [dev, test, perf, staging, production, production-dr]
+    runs-on: ubuntu-latest
+    environment: ${{ matrix.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure approved cluster access
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          test -n "$KUBECONFIG_B64"
+          printf '%s' "$KUBECONFIG_B64" | base64 --decode > "$RUNNER_TEMP/kubeconfig"
+          chmod 600 "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+      - name: Apply exact image digests
+        env:
+          API_IMAGE: ghcr.io/${{ github.repository_owner }}/distributed-trading-api@${{ needs.build.outputs.api_digest }}
+          FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend@${{ needs.build.outputs.frontend_digest }}
+        run: |
+          kubectl kustomize "k8s/overlays/${{ matrix.environment }}" \
+            | sed -e "s#registry.invalid/distributed-trading/trading-api:bootstrap#$API_IMAGE#g" \
+                  -e "s#registry.invalid/distributed-trading/frontend:bootstrap#$FRONTEND_IMAGE#g" \
+            | kubectl apply -f -
+          kubectl -n "${{ matrix.environment }}" rollout status deployment/trading-api --timeout=10m
+          kubectl -n "${{ matrix.environment }}" rollout status deployment/frontend --timeout=10m
+          kubectl -n "${{ matrix.environment }}" rollout status deployment/trading-worker --timeout=10m
+      - name: Record immutable promotion
+        run: |
+          echo "environment=${{ matrix.environment }}"
+          echo "api_digest=${{ needs.build.outputs.api_digest }}"
+          echo "frontend_digest=${{ needs.build.outputs.frontend_digest }}"

@@ -1,0 +1,5 @@
+bucket = "<project-state-bucket>"
+key    = "distributed-system/<environment>/terraform.tfstate"
+region = "cn-hangzhou"
+prefix = "distributed-system"
+

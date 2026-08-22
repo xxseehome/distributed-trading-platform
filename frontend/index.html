@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trading Operations Lab</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { max-width: 64rem; margin: 2rem auto; padding: 0 1rem; }
+      code, pre { background: color-mix(in srgb, CanvasText 8%, Canvas); padding: .2rem .4rem; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 1rem; }
+      .card { border: 1px solid color-mix(in srgb, CanvasText 30%, Canvas); border-radius: .5rem; padding: 1rem; }
+      button { padding: .6rem .9rem; cursor: pointer; }
+      #result { white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Trading Operations Lab</h1>
+    <p>Deterministic market data, pre-trade risk, Kafka events and PostgreSQL projections.</p>
+    <p id="status">Loading service state…</p>
+    <section class="grid" id="quotes"></section>
+    <section class="card">
+      <h2>Submit demo order</h2>
+      <button id="submit" type="button">Buy 2 ALPHA @ 100.00</button>
+      <pre id="result">No order submitted.</pre>
+    </section>
+    <script>
+      const symbols = ['ALPHA', 'BETA', 'GAMMA'];
+      const status = document.querySelector('#status');
+      const quotes = document.querySelector('#quotes');
+      const result = document.querySelector('#result');
+
+      Promise.all([
+        fetch('/healthz').then((response) => response.json()),
+        ...symbols.map((symbol) => fetch(`/api/market-data/${symbol}`).then((response) => response.json())),
+      ]).then(([health, ...data]) => {
+        status.textContent = `${health.service}: ${health.status}`;
+        quotes.innerHTML = data.map((quote) =>
+          `<article class="card"><strong>${quote.symbol}</strong><br>Price: ¥${quote.price}<br><small>${quote.as_of}</small></article>`,
+        ).join('');
+      }).catch(() => { status.textContent = 'Trading API unavailable'; });
+
+      document.querySelector('#submit').addEventListener('click', () => {
+        const key = `demo-${Date.now()}`;
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'Idempotency-Key': key},
+          body: JSON.stringify({
+            account_id: 'demo-account', client_order_id: key, symbol: 'ALPHA',
+            side: 'BUY', quantity: '2', limit_price: '100.00',
+          }),
+        }).then(async (response) => {
+          result.textContent = JSON.stringify(await response.json(), null, 2);
+        }).catch(() => { result.textContent = 'Order submission failed'; });
+      });
+    </script>
+  </body>
+</html>

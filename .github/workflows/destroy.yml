@@ -1,0 +1,24 @@
+name: Destroy project resources
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type DESTROY to continue
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  destroy:
+    if: ${{ inputs.confirm == 'DESTROY' }}
+    runs-on: ubuntu-latest
+    environment: destroy
+    steps:
+      - uses: actions/checkout@v4
+      - name: Destroy project states after approval
+        run: echo "Destroy foundation, primary and dr only after the documented cost/exit review."
+

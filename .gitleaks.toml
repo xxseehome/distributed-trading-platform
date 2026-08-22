@@ -1,0 +1,10 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented examples only"
+paths = [
+  '''(^|/)\.git/''',
+  '''(^|/)docs/evidence/''',
+]
+

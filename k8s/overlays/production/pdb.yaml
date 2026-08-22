@@ -1,0 +1,26 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: trading-api
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: trading-api}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: trading-worker
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: trading-worker}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: {app.kubernetes.io/name: frontend}

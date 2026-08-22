@@ -1,0 +1,48 @@
+name: Terraform approved apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: State to apply
+        required: true
+        type: choice
+        options: [foundation, primary, dr]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    environment: infrastructure-apply
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Exchange GitHub OIDC token for Alibaba STS
+        uses: aliyun/configure-aliyun-credentials-action@v1
+        with:
+          oidc-provider-arn: ${{ secrets.ALIYUN_OIDC_PROVIDER_ARN }}
+          role-to-assume: ${{ secrets.ALIYUN_APPLY_ROLE_ARN }}
+          audience: sts.aliyuncs.com
+      - name: Apply only the reviewed plan
+        working-directory: terraform/environments/${{ inputs.state }}
+        env:
+          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+          TF_OSS_ENDPOINT: ${{ secrets.TF_OSS_ENDPOINT }}
+        run: |
+          test -n "$TF_STATE_BUCKET"
+          test -n "$TF_LOCK_TABLE"
+          cat > "$RUNNER_TEMP/backend.hcl" <<EOF
+          bucket = "$TF_STATE_BUCKET"
+          key = "distributed-trading/${{ inputs.state }}/terraform.tfstate"
+          region = "cn-hangzhou"
+          prefix = "distributed-trading"
+          tablestore_table = "$TF_LOCK_TABLE"
+          tablestore_endpoint = "$TF_OSS_ENDPOINT"
+          EOF
+          terraform init -backend-config="$RUNNER_TEMP/backend.hcl"
+          terraform plan -out=tfplan -input=false -var='enable_apply=true'
+          terraform apply -input=false tfplan

@@ -1,0 +1,25 @@
+name: Incident response
+
+on:
+  workflow_dispatch:
+    inputs:
+      summary:
+        description: Short incident summary
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  create-incident:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create incident issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh issue create --title "Incident: ${{ inputs.summary }}"
+          --body "Collect ECS, K3s, deployment SHA, logs and timeline here."

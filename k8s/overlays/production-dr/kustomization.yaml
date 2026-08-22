@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: production-dr
+resources:
+  - namespace.yaml
+  - ../../base
+  - ../../base-data
+labels:
+  - pairs:
+      platform.example.com/environment: production-dr
+      platform.example.com/cluster: beijing-dr

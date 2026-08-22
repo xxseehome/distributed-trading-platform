@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - serviceaccount.yaml
+  - trading-api.yaml
+  - worker.yaml
+  - frontend.yaml
+  - ingress.yaml
+  - networkpolicy.yaml
+labels:
+  - includeSelectors: true
+    pairs:
+      app.kubernetes.io/part-of: distributed-trading
+      app.kubernetes.io/managed-by: argocd
