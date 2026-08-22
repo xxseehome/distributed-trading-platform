@@ -13,6 +13,8 @@ jobs:
   quality:
     name: Code quality
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,6 +29,8 @@ jobs:
   integration:
     name: Contract and worker integration
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -52,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: aquasecurity/trivy-action@0.28.0
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -66,7 +70,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: anchore/sbom-action@v0.17.0
+      - uses: anchore/sbom-action@v0.24.0
         with:
           path: .
           format: spdx-json
@@ -131,7 +135,7 @@ jobs:
           "$REGISTRY/$IMAGE_OWNER/distributed-trading-frontend:${GITHUB_SHA}"
           --file frontend/Dockerfile .
       - name: Scan built API image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/distributed-trading-api:${{ github.sha }}
           format: table
