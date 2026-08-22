@@ -8,18 +8,44 @@ on:
         required: true
         type: choice
         options: [foundation, primary, dr]
+      plan_run_id:
+        description: GitHub Actions run ID that produced the reviewed plan artifact
+        required: true
+        type: string
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   apply:
     runs-on: ubuntu-latest
     environment: infrastructure-apply
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
+      - name: Download reviewed Terraform plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.plan_run_id }}
+          github-token: ${{ github.token }}
+          pattern: terraform-plan-${{ inputs.state }}-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/reviewed-plan
+      - name: Locate reviewed plan
+        id: reviewed-plan
+        shell: bash
+        env:
+          PLAN_RUN_ID: ${{ inputs.plan_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$PLAN_RUN_ID" =~ ^[0-9]+$ ]]
+          plan_path="$(find "$RUNNER_TEMP/reviewed-plan" -type f -name tfplan -print -quit)"
+          test -n "$plan_path"
+          echo "path=$plan_path" >> "$GITHUB_OUTPUT"
       - name: Exchange GitHub OIDC token for Alibaba STS
         uses: aliyun/configure-aliyun-credentials-action@v1
         with:
@@ -44,5 +70,4 @@ jobs:
           tablestore_endpoint = "$TF_OSS_ENDPOINT"
           EOF
           terraform init -backend-config="$RUNNER_TEMP/backend.hcl"
-          terraform plan -out=tfplan -input=false -var='enable_apply=true'
-          terraform apply -input=false tfplan
+          terraform apply -input=false "${{ steps.reviewed-plan.outputs.path }}"

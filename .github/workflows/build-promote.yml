@@ -5,13 +5,14 @@ on:
 
 permissions:
   contents: read
-  packages: write
-  id-token: write
 
 jobs:
   build:
     name: Build and sign once
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     outputs:
       api_digest: ${{ steps.api.outputs.digest }}
       frontend_digest: ${{ steps.frontend.outputs.digest }}
@@ -52,6 +53,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: dev
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Configure approved cluster access
@@ -78,6 +81,8 @@ jobs:
         environment: [dev, test, perf, staging, production, production-dr]
     runs-on: ubuntu-latest
     environment: ${{ matrix.environment }}
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Configure approved cluster access
