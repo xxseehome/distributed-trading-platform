@@ -147,9 +147,7 @@ def test_cluster_positions_read_from_postgres_projection(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {
         "account_id": "demo-account",
-        "positions": [
-            {"symbol": "ALPHA", "net_quantity": "2", "account_id": "demo-account"}
-        ],
+        "positions": [{"symbol": "ALPHA", "net_quantity": "2", "account_id": "demo-account"}],
     }
 
 
