@@ -2,8 +2,6 @@ name: Build once and promote immutable digest
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 permissions:
   contents: read
