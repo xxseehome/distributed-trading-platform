@@ -28,11 +28,11 @@ variable "enable_apply" {
 # claims; no long-lived AccessKey is stored in this repository.
 resource "terraform_data" "oidc_contract" {
   input = {
-    provider = "github-actions-trading"
-    plan_role = "github-trading-plan"
+    provider   = "github-actions-trading"
+    plan_role  = "github-trading-plan"
     apply_role = "github-trading-apply"
-    ops_role = "github-trading-ops"
-    enabled = var.enable_apply
+    ops_role   = "github-trading-ops"
+    enabled    = var.enable_apply
   }
 }
 

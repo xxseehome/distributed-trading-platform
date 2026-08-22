@@ -32,13 +32,13 @@ variable "zone_ids" {
 }
 
 module "dr" {
-  source       = "../../modules/k3s-cluster"
-  enable_apply = var.enable_apply
-  project_name = "distributed-dr"
-  region_id    = var.region_id
-  image_id     = var.image_id
-  zone_ids     = var.zone_ids
-  server_count = 1
+  source           = "../../modules/k3s-cluster"
+  enable_apply     = var.enable_apply
+  project_name     = "distributed-dr"
+  region_id        = var.region_id
+  image_id         = var.image_id
+  zone_ids         = var.zone_ids
+  server_count     = 1
   system_disk_size = 40
   tags = {
     Project   = "distributed-system"
