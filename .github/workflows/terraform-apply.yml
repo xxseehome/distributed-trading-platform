@@ -19,7 +19,7 @@ permissions:
 jobs:
   apply:
     runs-on: ubuntu-latest
-    environment: infrastructure-apply
+    environment: terraform-apply
     permissions:
       actions: read
       contents: read
