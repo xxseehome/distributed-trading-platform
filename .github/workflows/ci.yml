@@ -106,9 +106,42 @@ jobs:
           docker run --rm -v "$PWD:/project" openpolicyagent/conftest:v0.63.0
           verify --policy /project/policies
 
+  terraform:
+    name: Terraform validation and plan-only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.11.4
+      - name: Terraform format check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+      - name: Terraform init and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          for state in foundation primary dr; do
+            terraform -chdir="terraform/environments/${state}" init -backend=false -input=false
+            terraform -chdir="terraform/environments/${state}" validate
+          done
+      - name: Terraform plan-only safety check
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform -chdir=terraform/environments/foundation plan \
+            -refresh=false -input=false -var='enable_apply=false'
+          for state in primary dr; do
+            terraform -chdir="terraform/environments/${state}" plan \
+              -refresh=false -input=false \
+              -var='enable_apply=false' \
+              -var='image_id=validation-placeholder' \
+              -var='zone_ids=["zone-a","zone-b","zone-c"]'
+          done
+
   build:
     name: Build gate
-    needs: [quality, integration, gitleaks, trivy, syft, opa]
+    needs: [quality, integration, gitleaks, trivy, syft, opa, terraform]
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -2,7 +2,7 @@ package ci
 
 import rego.v1
 
-required_jobs := {"quality", "integration", "gitleaks", "trivy", "syft", "opa", "build"}
+required_jobs := {"quality", "integration", "gitleaks", "trivy", "syft", "opa", "terraform", "build"}
 
 deny contains msg if {
   missing := required_jobs - {name | input.jobs[name]}
@@ -38,6 +38,11 @@ deny contains msg if {
 deny contains msg if {
   not has_need("opa")
   msg := "build must depend on the OPA gate"
+}
+
+deny contains msg if {
+  not has_need("terraform")
+  msg := "build must depend on the Terraform validation gate"
 }
 
 has_need(need) if {
