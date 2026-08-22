@@ -306,7 +306,7 @@ flowchart LR
 - [x] 配置 main 分支 PR、8 个 required checks、禁止 force push、禁止删除分支、管理员也须遵守保护规则，并要求线性历史和会话解决。
 - [x] 创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` Environments。
 - [x] apply、staging、production、DR 和 destroy 已配置 `xxseehome` 为 required reviewer；当前账号是唯一仓库协作者，`prevent_self_review=false`，后续可添加第二位 reviewer。
-- [ ] 只有云访问 job 设置 `id-token: write`。
+- [x] 只有云访问 job 设置 `id-token: write`；PR #4 将 OIDC 权限收敛到 Terraform plan/apply 云访问 job，其他 job 不再继承该权限。
 - [ ] 检查并复用正确的 GitHub OIDC Provider，不复用旧角色和权限。
 - [ ] 不存在时创建独立 `github-actions-trading` Provider。
 - [ ] 创建最小权限 `github-trading-plan`、`github-trading-apply` 和 `github-trading-ops` 角色。
@@ -338,8 +338,8 @@ flowchart LR
 - [x] Integration 使用 Actions service containers 启动 Redis、Kafka 和 PostgreSQL（PR #2 / run `32572298472`）。
 - [x] 执行 Alembic migration upgrade 和 schema validation（PR #2 / run `32572298472`）。
 - [x] 执行 Terraform fmt、validate 和 plan-only（run `32558083862`，隔离本地 backend、`enable_apply=false`）；当前未增加 Terraform test 文件。
-- [ ] 保存不可变 Terraform plan artifact。
-- [ ] `infrastructure-apply` 审批后只 apply 已保存 plan。
+- [x] 保存不可变 Terraform plan artifact；`terraform-plan` 按 state 和 commit SHA 上传、保留 7 天的 `tfplan` artifact（PR #4）。
+- [x] `infrastructure-apply` 审批后只 apply 已保存 plan；通过 `plan_run_id` 下载并定位经审核的 artifact，禁止重新 plan（PR #4）。
 - [ ] 通过 Cloud Assistant 和 Ansible 配置节点。
 - [x] 前端和后端镜像分别只构建一次并使用 Cosign 签名。
 - [x] 按 `dev → test → perf → staging → production` 推广相同 digest。
