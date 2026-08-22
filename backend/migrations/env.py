@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from configparser import ConfigParser
 from logging.config import fileConfig
 
 from alembic import context
@@ -8,11 +9,15 @@ from sqlalchemy import engine_from_config, pool
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    logging_config = ConfigParser()
+    logging_config.read(config.config_file_name)
+    if logging_config.has_section("loggers"):
+        fileConfig(config.config_file_name)
 
 dsn = os.getenv("POSTGRES_DSN")
 if dsn:
-    config.set_main_option("sqlalchemy.url", dsn)
+    sqlalchemy_dsn = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
+    config.set_main_option("sqlalchemy.url", sqlalchemy_dsn)
 
 
 def run_migrations_offline() -> None:
