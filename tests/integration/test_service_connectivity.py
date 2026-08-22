@@ -26,9 +26,7 @@ def test_redis_round_trip() -> None:
 
 def test_postgres_migration_marker() -> None:
     with psycopg.connect(os.environ["POSTGRES_DSN"]) as connection:
-        revision = connection.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()
+        revision = connection.execute("SELECT version_num FROM alembic_version").fetchone()
     assert revision == ("001_initial",)
 
 
