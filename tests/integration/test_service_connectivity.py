@@ -11,7 +11,6 @@ import pytest
 import redis
 from aiokafka import AIOKafkaConsumer
 
-
 pytestmark = pytest.mark.skipif(
     os.getenv("CI_SERVICE_TESTS") != "1",
     reason="service containers are enabled only in GitHub Actions",
