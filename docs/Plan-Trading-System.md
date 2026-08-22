@@ -1,17 +1,17 @@
 # GitHub + 阿里云中国 Trading System Distributed System 实施计划
 
 > 保存目标：`docs/Plan-Trading-System.md`  
-> 状态：执行中；本地应用、Kubernetes 清单、策略门禁、GitHub CI 和镜像构建门禁已完成，云资源、集群部署与远程审批配置仍受凭据、成本和审批门禁约束。
+> 状态：执行中；本地应用、Kubernetes 清单、策略门禁、GitHub CI、镜像构建门禁、main 分支保护和 GitHub Environments 已完成，云资源与集群部署仍受凭据、成本和审批门禁约束。
 > 执行过程中，任务状态同步到本文件。
 > 验收基准：`/Users/xxseehome/Documents/sr-platform-engineer-test.pdf` 及附加 SRE、可观测性、GitOps、安全与分布式系统要求。  
 > 定位：Low-Latency Trading Systems Production Operations Lab，不宣称真实交易所接入或纳秒级 HFT 性能。  
 > 原文件 `docs/PLAN - General.md` 保持不变。
 
-> 最近执行记录（2026-08-22）：GitHub Actions [run 32558083862](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32558083862) 已通过 Terraform fmt、validate、plan-only（隔离本地 backend）、Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、API/前端构建、镜像扫描和 GHCR 推送。为消除 Trivy 对 Starlette 的高危依赖告警，`backend/requirements.txt` 从 `starlette==0.52.1` 升级到 `starlette==1.3.1`；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。
+> 最近执行记录（2026-08-22）：GitHub Actions [run 32558083862](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32558083862) 已通过 Terraform fmt、validate、plan-only（隔离本地 backend）、Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、API/前端构建、镜像扫描和 GHCR 推送。为消除 Trivy 对 Starlette 的高危依赖告警，`backend/requirements.txt` 从 `starlette==0.52.1` 升级到 `starlette==1.3.1`；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。GitHub API 已创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` 环境；apply、staging、production、production-dr、dr-activate、destroy 配置 `xxseehome` 为手动 reviewer，仅允许受保护分支，未触发任何工作流。
 
 ## 1. 目标与总体架构
 
-- [x] 使用 GitHub Public Repository、Pull Request 和 Actions 实施代码、变更和 CI 门禁管理；Environments 与审批仍待配置。
+- [x] 使用 GitHub Public Repository、Pull Request 和 Actions 实施代码、变更和 CI 门禁管理；Environments 与审批边界已配置，实际云部署仍待凭据与人工批准。
 - [ ] 使用阿里云中国 VPC、ECS、CLB、ACR、OSS、RAM OIDC 和云助手。
 - [ ] 部署杭州 non-production、杭州 production、北京 DR 三个 K3s 集群。
 - [ ] Production 使用三个跨可用区 K3s server，实现 control plane 和核心交易路径 HA。
@@ -303,9 +303,9 @@ flowchart LR
 ### GitHub 与阿里云
 
 - [x] 创建公开 monorepo `xxseehome/distributed-trading-platform`（默认分支 `main`）。
-- [ ] 配置 main 分支 PR、required checks、禁止 force push 和管理员绕过。
-- [ ] 创建 `infrastructure-plan`、`infrastructure-apply`、`staging`、`production`、`dr-activate` 和 `destroy` Environments。
-- [ ] apply、staging、production、DR 和 destroy 必须有 required reviewer。
+- [x] 配置 main 分支 PR、8 个 required checks、禁止 force push、禁止删除分支、管理员也须遵守保护规则，并要求线性历史和会话解决。
+- [x] 创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` Environments。
+- [x] apply、staging、production、DR 和 destroy 已配置 `xxseehome` 为 required reviewer；当前账号是唯一仓库协作者，`prevent_self_review=false`，后续可添加第二位 reviewer。
 - [ ] 只有云访问 job 设置 `id-token: write`。
 - [ ] 检查并复用正确的 GitHub OIDC Provider，不复用旧角色和权限。
 - [ ] 不存在时创建独立 `github-actions-trading` Provider。
