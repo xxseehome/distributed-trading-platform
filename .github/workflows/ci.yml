@@ -100,7 +100,7 @@ jobs:
             -v "$PWD:/project" \
             -v /tmp/rendered:/rendered \
             openpolicyagent/conftest:v0.63.0 \
-            test --input yaml /rendered --policy /project/policies/kubernetes
+            test --parser yaml /rendered --policy /project/policies/kubernetes
       - name: Policy unit tests
         run: >-
           docker run --rm -v "$PWD:/project" openpolicyagent/conftest:v0.63.0
