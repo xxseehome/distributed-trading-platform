@@ -53,12 +53,15 @@ variable "tags" {
 }
 
 check "zone_count_matches_nodes" {
-  assert        = var.server_count <= length(var.zone_ids)
-  error_message = "server_count cannot exceed the number of supplied availability zones."
+  assert {
+    condition     = var.server_count <= length(var.zone_ids)
+    error_message = "server_count cannot exceed the number of supplied availability zones."
+  }
 }
 
 check "zones_are_distinct" {
-  assert        = length(distinct(var.zone_ids)) == length(var.zone_ids)
-  error_message = "Production K3s servers must use distinct availability zones."
+  assert {
+    condition     = length(distinct(var.zone_ids)) == length(var.zone_ids)
+    error_message = "Production K3s servers must use distinct availability zones."
+  }
 }
-
