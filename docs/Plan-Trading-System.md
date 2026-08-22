@@ -7,7 +7,7 @@
 > 定位：Low-Latency Trading Systems Production Operations Lab，不宣称真实交易所接入或纳秒级 HFT 性能。  
 > 原文件 `docs/PLAN - General.md` 保持不变。
 
-> 最近执行记录（2026-08-22）：GitHub Actions [run 32558083862](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32558083862) 已通过 Terraform fmt、validate、plan-only（隔离本地 backend）、Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、API/前端构建、镜像扫描和 GHCR 推送。为消除 Trivy 对 Starlette 的高危依赖告警，`backend/requirements.txt` 从 `starlette==0.52.1` 升级到 `starlette==1.3.1`；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。GitHub API 已创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` 环境；apply、staging、production、production-dr、dr-activate、destroy 配置 `xxseehome` 为手动 reviewer，仅允许受保护分支，未触发任何工作流。
+> 最近执行记录（2026-08-22）：合并 PR #2 后的 GitHub Actions [run 32572298472](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32572298472) 已通过 Terraform fmt、validate、plan-only（隔离本地 backend）、Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、Redis/Kafka/PostgreSQL service containers、Alembic/schema validation、API/前端构建、镜像扫描和 GHCR 推送。未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。GitHub API 已创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` 环境；apply、staging、production、production-dr、dr-activate、destroy 配置 `xxseehome` 为手动 reviewer，仅允许受保护分支，未触发任何工作流。现有 `terraform-plan`、`terraform-apply` RAM 角色未修改。
 
 ## 1. 目标与总体架构
 
@@ -220,8 +220,8 @@ flowchart LR
 - [x] 相同幂等键但请求内容不同返回 HTTP 409。
 - [x] 风控拒绝返回 HTTP 422 和稳定的拒绝原因。
 - [x] Kill switch 开启或关键依赖不可用时返回 HTTP 503。
-- [ ] 实现 `GET /api/orders/{order_id}`，优先读取 Redis，历史数据回退到 PostgreSQL。
-- [ ] 实现 `GET /api/positions/{account_id}`，读取 PostgreSQL 投影。
+- [x] 实现 `GET /api/orders/{order_id}`，优先读取 Redis，历史数据回退到 PostgreSQL；两级投影均不可用时返回明确 degraded/503。
+- [x] 实现 `GET /api/positions/{account_id}`，读取 PostgreSQL 投影；数据库不可用时返回明确 degraded/503。
 - [x] 实现 `GET /api/risk/status/{account_id}`，显示限制、当前使用量和 kill-switch 状态。
 - [x] 实现受管理凭证保护的 `POST /api/admin/kill-switch`。
 - [x] 移除 Catalog/Book Store 业务接口，不增加支付、用户、搜索或结算服务。
@@ -335,8 +335,8 @@ flowchart LR
 ### CI/CD
 
 - [x] PR 阶段执行 Ruff、unit、integration、Gitleaks、Trivy、Syft 和 OPA/Conftest。
-- [ ] Integration 使用 Actions service containers 启动 Redis、Kafka 和 PostgreSQL。
-- [ ] 执行 Alembic migration upgrade 和 schema validation。
+- [x] Integration 使用 Actions service containers 启动 Redis、Kafka 和 PostgreSQL（PR #2 / run `32572298472`）。
+- [x] 执行 Alembic migration upgrade 和 schema validation（PR #2 / run `32572298472`）。
 - [x] 执行 Terraform fmt、validate 和 plan-only（run `32558083862`，隔离本地 backend、`enable_apply=false`）；当前未增加 Terraform test 文件。
 - [ ] 保存不可变 Terraform plan artifact。
 - [ ] `infrastructure-apply` 审批后只 apply 已保存 plan。
@@ -406,7 +406,7 @@ flowchart LR
 - [x] 测试 Kafka 事件序列化、message key 和 schema version。
 - [ ] 测试 Worker event 去重和重复消费。
 - [ ] 测试 PostgreSQL upsert 和 `processed_events` 唯一约束。
-- [ ] 测试 Redis、Kafka 和 PostgreSQL 连通性。
+- [x] 测试 Redis、Kafka 和 PostgreSQL 连通性（PR #2 / run `32572298472`）。
 - [ ] 测试 Redis/Kafka 故障时 Trading API readiness。
 - [ ] 测试 PostgreSQL 故障时 Trading API 仍可接受订单。
 - [ ] 测试 PostgreSQL 恢复后 Kafka backlog 自动追平。
