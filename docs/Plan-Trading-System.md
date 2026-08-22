@@ -1,15 +1,17 @@
 # GitHub + 阿里云中国 Trading System Distributed System 实施计划
 
 > 保存目标：`docs/Plan-Trading-System.md`  
-> 状态：执行中；本地应用、Kubernetes 清单、策略门禁和自动化验证已完成一部分，云资源与 GitHub 远程配置仍受凭据、成本和审批门禁约束。
+> 状态：执行中；本地应用、Kubernetes 清单、策略门禁、GitHub CI 和镜像构建门禁已完成，云资源、集群部署与远程审批配置仍受凭据、成本和审批门禁约束。
 > 执行过程中，任务状态同步到本文件。
 > 验收基准：`/Users/xxseehome/Documents/sr-platform-engineer-test.pdf` 及附加 SRE、可观测性、GitOps、安全与分布式系统要求。  
 > 定位：Low-Latency Trading Systems Production Operations Lab，不宣称真实交易所接入或纳秒级 HFT 性能。  
 > 原文件 `docs/PLAN - General.md` 保持不变。
 
+> 最近执行记录（2026-08-22）：GitHub Actions [run 32557291236](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32557291236) 已通过 Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、API/前端构建、镜像扫描和 GHCR 推送。为消除 Trivy 对 Starlette 的高危依赖告警，`backend/requirements.txt` 从 `starlette==0.52.1` 升级到 `starlette==1.3.1`；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。
+
 ## 1. 目标与总体架构
 
-- [ ] 使用 GitHub Public Repository、Pull Request、Actions 和 Environments 实施代码、变更和审批管理。
+- [x] 使用 GitHub Public Repository、Pull Request 和 Actions 实施代码、变更和 CI 门禁管理；Environments 与审批仍待配置。
 - [ ] 使用阿里云中国 VPC、ECS、CLB、ACR、OSS、RAM OIDC 和云助手。
 - [ ] 部署杭州 non-production、杭州 production、北京 DR 三个 K3s 集群。
 - [ ] Production 使用三个跨可用区 K3s server，实现 control plane 和核心交易路径 HA。
@@ -300,7 +302,7 @@ flowchart LR
 
 ### GitHub 与阿里云
 
-- [ ] 创建公开 monorepo `xxseehome/distributed-trading-platform`。
+- [x] 创建公开 monorepo `xxseehome/distributed-trading-platform`（默认分支 `main`）。
 - [ ] 配置 main 分支 PR、required checks、禁止 force push 和管理员绕过。
 - [ ] 创建 `infrastructure-plan`、`infrastructure-apply`、`staging`、`production`、`dr-activate` 和 `destroy` Environments。
 - [ ] apply、staging、production、DR 和 destroy 必须有 required reviewer。
@@ -458,7 +460,7 @@ flowchart LR
 ## 7. 固定假设与边界
 
 - GitLab 中国账号和 AWS.cn 个人免费试用不可用，实施路径固定为 GitHub 与阿里云中国。
-- 当前工作区为无 commit、无 remote 的新仓库。
+- 当前工作区已初始化 Git 并关联公开远程仓库 `xxseehome/distributed-trading-platform`；云端资源与环境审批仍未配置。
 - 三个集群均在阿里云中国：杭州 non-production、杭州 production、北京 DR。
 - Production 固定使用三个 K3s server 和三个可用区。
 - Production HA 范围包括 K3s control plane、Trading API、Worker、Redis 和 Kafka。
