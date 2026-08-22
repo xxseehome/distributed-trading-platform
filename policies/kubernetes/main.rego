@@ -6,52 +6,49 @@ workload_kind := {"Deployment", "StatefulSet", "Job"}
 
 deny contains msg if {
   workload_kind[input.kind]
-  some container
-  input.spec.template.spec.containers[container].securityContext.privileged == true
+  some container in input.spec.template.spec.containers
+  container.securityContext.privileged == true
   msg := "privileged containers are forbidden"
 }
 
 deny contains msg if {
   workload_kind[input.kind]
-  some container
-  endswith(input.spec.template.spec.containers[container].image, ":latest")
+  some container in input.spec.template.spec.containers
+  endswith(container.image, ":latest")
   msg := "latest image tags are forbidden"
 }
 
 deny contains msg if {
   workload_kind[input.kind]
-  some container
-  not input.spec.template.spec.containers[container].resources.limits
+  some container in input.spec.template.spec.containers
+  not container.resources.limits
   msg := "every workload container must define resource limits"
 }
 
 deny contains msg if {
   workload_kind[input.kind]
-  some volume
-  input.spec.template.spec.volumes[volume].hostPath
+  some volume in input.spec.template.spec.volumes
+  volume.hostPath
   msg := "hostPath volumes are forbidden"
 }
 
 deny contains msg if {
   workload_kind[input.kind]
-  some container
-  input.spec.template.spec.containers[container].securityContext.allowPrivilegeEscalation != false
+  some container in input.spec.template.spec.containers
+  container.securityContext.allowPrivilegeEscalation != false
   msg := "allowPrivilegeEscalation must be false"
 }
 
 deny contains msg if {
   workload_kind[input.kind]
-  some container
-  not container_runs_non_root(container)
+  some container in input.spec.template.spec.containers
+  not pod_runs_non_root
+  not container.securityContext.runAsNonRoot == true
   msg := "every workload container must run as non-root"
 }
 
-container_runs_non_root(container) if {
+pod_runs_non_root if {
   input.spec.template.spec.securityContext.runAsNonRoot == true
-}
-
-container_runs_non_root(container) if {
-  input.spec.template.spec.containers[container].securityContext.runAsNonRoot == true
 }
 
 deny contains msg if {
