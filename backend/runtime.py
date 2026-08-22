@@ -6,9 +6,11 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 from decimal import Decimal
 from typing import Any
 
+import psycopg
 from aiokafka import AIOKafkaProducer
 from redis.asyncio import Redis
 from redis.asyncio.sentinel import Sentinel
@@ -28,6 +30,22 @@ class RiskRejected(RuntimeError):
 
 class IdempotencyConflict(RuntimeError):
     """The same idempotency key was reused with a different request."""
+
+
+SCHEMA_RE = re.compile(r"^[a-z][a-z0-9_]{0,30}$")
+
+
+def _postgres_dsn() -> str:
+    return os.getenv(
+        "POSTGRES_DSN",
+        "postgresql://{user}:{password}@{host}:{port}/{database}".format(
+            user=os.getenv("POSTGRES_USER", "trading"),
+            password=os.getenv("POSTGRES_PASSWORD", ""),
+            host=os.getenv("POSTGRES_HOST", "postgres"),
+            port=os.getenv("POSTGRES_PORT", "5432"),
+            database=os.getenv("POSTGRES_DB", "trading"),
+        ),
+    )
 
 
 class Runtime:
@@ -52,6 +70,7 @@ class Runtime:
         self.producer: AIOKafkaProducer | None = None
         self._redis_ready = False
         self._kafka_ready = False
+        self._postgres_schema = os.getenv("TRADING_SCHEMA", "trading")
 
     async def start(self) -> None:
         if not self.cluster_mode:
@@ -207,13 +226,67 @@ class Runtime:
             raise DependencyUnavailable("Redis is unavailable") from exc
 
     async def get_order(self, order_id: str) -> dict[str, Any] | None:
-        if not self.cluster_mode or self.redis is None:
+        if not self.cluster_mode:
             return self._orders.get(order_id)
+        redis_error: Exception | None = None
+        if self.redis is not None:
+            try:
+                raw = await self.redis.get(f"order:{order_id}")
+                if raw:
+                    return json.loads(raw)
+            except Exception as exc:
+                redis_error = exc
+        else:
+            redis_error = DependencyUnavailable("Redis is unavailable")
+
         try:
-            raw = await self.redis.get(f"order:{order_id}")
-            return json.loads(raw) if raw else None
+            order = await asyncio.to_thread(self._query_postgres_order, order_id)
         except Exception as exc:
-            raise DependencyUnavailable("Redis is unavailable") from exc
+            message = "PostgreSQL projection is unavailable"
+            if redis_error is not None:
+                message = "Redis and PostgreSQL projections are unavailable"
+            raise DependencyUnavailable(message) from exc
+        return order
+
+    def _query_postgres_order(self, order_id: str) -> dict[str, Any] | None:
+        schema = self._postgres_schema
+        if not SCHEMA_RE.fullmatch(schema):
+            raise ValueError("invalid TRADING_SCHEMA")
+        with psycopg.connect(_postgres_dsn(), connect_timeout=3) as connection:
+            row = connection.execute(
+                f'''SELECT order_id, client_order_id, account_id, symbol, side,
+                           quantity, limit_price, status, accepted_at, updated_at, trace_id
+                    FROM "{schema}".orders WHERE order_id = %s''',
+                (order_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        (
+            order_id,
+            client_order_id,
+            account_id,
+            symbol,
+            side,
+            quantity,
+            limit_price,
+            status,
+            accepted_at,
+            updated_at,
+            trace_id,
+        ) = row
+        return {
+            "order_id": order_id,
+            "client_order_id": client_order_id,
+            "account_id": account_id,
+            "symbol": symbol,
+            "side": side,
+            "quantity": str(quantity),
+            "limit_price": str(limit_price),
+            "status": status,
+            "occurred_at": accepted_at.isoformat(),
+            "updated_at": updated_at.isoformat(),
+            "trace_id": trace_id,
+        }
 
     async def publish(self, topic: str, event: dict[str, Any], *, key: str) -> None:
         if not self.cluster_mode:
@@ -250,5 +323,28 @@ class Runtime:
         # PostgreSQL is deliberately an asynchronous projection. The worker owns
         # the connection and the API remains available when it is unavailable.
         if self.cluster_mode:
-            raise DependencyUnavailable("PostgreSQL projection is unavailable")
+            try:
+                return await asyncio.to_thread(self._query_postgres_positions, account_id)
+            except Exception as exc:
+                raise DependencyUnavailable("PostgreSQL projection is unavailable") from exc
         return []
+
+    def _query_postgres_positions(self, account_id: str) -> list[dict[str, Any]]:
+        schema = self._postgres_schema
+        if not SCHEMA_RE.fullmatch(schema):
+            raise ValueError("invalid TRADING_SCHEMA")
+        with psycopg.connect(_postgres_dsn(), connect_timeout=3) as connection:
+            rows = connection.execute(
+                f'''SELECT symbol, net_quantity, updated_at
+                    FROM "{schema}".positions WHERE account_id = %s
+                    ORDER BY symbol''',
+                (account_id,),
+            ).fetchall()
+        return [
+            {
+                "symbol": symbol,
+                "net_quantity": str(net_quantity),
+                "updated_at": updated_at.isoformat(),
+            }
+            for symbol, net_quantity, updated_at in rows
+        ]

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from backend.main import app
+from backend.main import app, runtime
 from backend.models import OrderRequest, as_event
 from backend.worker import execution_for
 
@@ -101,6 +101,55 @@ def test_order_query_and_positions():
     assert client.get("/api/positions/demo-account").json() == {
         "account_id": "demo-account",
         "positions": [],
+    }
+
+
+def test_cluster_order_query_falls_back_to_postgres(monkeypatch):
+    monkeypatch.setattr(runtime, "cluster_mode", True)
+    monkeypatch.setattr(runtime, "redis", None)
+    monkeypatch.setattr(
+        runtime,
+        "_query_postgres_order",
+        lambda order_id: {"order_id": order_id, "status": "executed"},
+    )
+
+    response = client.get("/api/orders/history-order")
+
+    assert response.status_code == 200
+    assert response.json() == {"order_id": "history-order", "status": "executed"}
+
+
+def test_cluster_order_query_reports_degraded_when_postgres_is_unavailable(monkeypatch):
+    monkeypatch.setattr(runtime, "cluster_mode", True)
+    monkeypatch.setattr(runtime, "redis", None)
+
+    def unavailable(_: str):
+        raise RuntimeError("database down")
+
+    monkeypatch.setattr(runtime, "_query_postgres_order", unavailable)
+
+    response = client.get("/api/orders/history-order")
+
+    assert response.status_code == 503
+    assert "PostgreSQL" in response.json()["detail"]
+
+
+def test_cluster_positions_read_from_postgres_projection(monkeypatch):
+    monkeypatch.setattr(runtime, "cluster_mode", True)
+    monkeypatch.setattr(
+        runtime,
+        "_query_postgres_positions",
+        lambda account_id: [{"symbol": "ALPHA", "net_quantity": "2", "account_id": account_id}],
+    )
+
+    response = client.get("/api/positions/demo-account")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "account_id": "demo-account",
+        "positions": [
+            {"symbol": "ALPHA", "net_quantity": "2", "account_id": "demo-account"}
+        ],
     }
 
 
