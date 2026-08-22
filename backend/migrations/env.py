@@ -16,7 +16,8 @@ if config.config_file_name is not None:
 
 dsn = os.getenv("POSTGRES_DSN")
 if dsn:
-    config.set_main_option("sqlalchemy.url", dsn)
+    sqlalchemy_dsn = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
+    config.set_main_option("sqlalchemy.url", sqlalchemy_dsn)
 
 
 def run_migrations_offline() -> None:

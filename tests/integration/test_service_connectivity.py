@@ -6,10 +6,10 @@ import asyncio
 import os
 import time
 
+from aiokafka import AIOKafkaConsumer
 import psycopg
 import pytest
 import redis
-from aiokafka import AIOKafkaConsumer
 
 
 pytestmark = pytest.mark.skipif(
