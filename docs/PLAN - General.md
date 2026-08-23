@@ -52,7 +52,6 @@ flowchart TB
 
             ACRHZ["ACR 杭州"]
             OSSHZ["OSS 杭州<br/>State · Artifact · Backup"]
-            OTS["Tablestore<br/>Terraform Lock"]
         end
 
         subgraph BJ["北京"]
@@ -210,7 +209,7 @@ flowchart LR
 - [ ] 将 Trust Policy 限制到准确的 GitHub repository 和 Environment subject。
 - [ ] 不在 GitHub 保存长期 AccessKey。
 - [ ] Terraform 使用 `foundation`、`primary`、`dr` 三个独立 state。
-- [ ] 使用私有 OSS backend、Tablestore locking 和 GitHub Actions concurrency。
+- [x] 使用私有 OSS backend 和 GitHub Actions concurrency；不创建额外锁表。该方案只串行化 GitHub Actions，外部 Terraform 命令仍必须人工避免并发。
 - [ ] 使用标签 `Project`、`Owner`、`ManagedBy`、`ExpiresAt` 管理资源。
 
 ### Ansible 与 GitOps
@@ -303,7 +302,7 @@ flowchart LR
 - [ ] 不通过降低 Production HA 来满足预算。
 - [ ] 创建 ¥50 项目预算及 50%/80%/100% 告警。
 - [ ] 演示后通过 `destroy` Environment 审批删除三个集群、ECS、CLB、磁盘、项目 ACR、OSS 数据和项目 RAM roles。
-- [ ] 主资源删除后清理项目 Tablestore lock 和 OSS backend。
+- [ ] 主资源删除后清理项目 OSS backend state。
 - [ ] 保留共享旧 OIDC Provider，不删除。
 - [ ] 保留 GitHub 仓库、架构图和验收证据，不保留 Terraform state。
 - [ ] 确认最终零运行 ECS、零负载均衡、零遗留磁盘和零新增未抵扣费用。
