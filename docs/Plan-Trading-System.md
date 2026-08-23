@@ -9,6 +9,8 @@
 
 > 最近执行记录（2026-08-22）：合并 PR #2 后的 GitHub Actions [run 32572298472](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32572298472) 已通过 Terraform fmt、validate、plan-only（隔离本地 backend）、Gitleaks、Trivy、Syft、OPA/Conftest、Ruff、pytest、Redis/Kafka/PostgreSQL service containers、Alembic/schema validation、API/前端构建、镜像扫描和 GHCR 推送。未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。GitHub API 已创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` 环境；apply、staging、production、production-dr、dr-activate、destroy 配置 `xxseehome` 为手动 reviewer，仅允许受保护分支，未触发任何工作流。现有 `terraform-plan`、`terraform-apply` RAM 角色未修改。
 
+> 最近执行记录（2026-08-23）：PR #8 [run 32609932965](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32609932965) 通过后已合并到 `main`；主分支 [run 32610037141](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32610037141) 的 Contract/Worker integration、Terraform validation/plan-only、Gitleaks、Trivy filesystem/config、Syft、OPA/Conftest、Ruff、pytest 和 Build gate 全部通过。PR #8 将 Trivy config 扫描纳入发布依赖，补充了工作流 Environment/`terraform-apply` 策略测试，并为 Redis、Redis Sentinel、Kafka、PostgreSQL 和 topic Job 增加只读 root filesystem 与 scratch volume；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。Actions 的 Node.js 20 deprecation annotation 仍存在，但不影响结果。
+
 ## 1. 目标与总体架构
 
 - [x] 使用 GitHub Public Repository、Pull Request 和 Actions 实施代码、变更和 CI 门禁管理；Environments 与审批边界已配置，实际云部署仍待凭据与人工批准。
@@ -288,7 +290,7 @@ flowchart LR
 - [x] Trading API 和 Worker 在 Production 使用三副本。
 - [x] 使用 Pod anti-affinity、topology spread 和 PDB。
 - [x] 使用 `maxUnavailable: 0`、`maxSurge: 1` 和 startup/readiness/liveness probes。
-- [ ] 所有容器使用非 root、只读 root filesystem 和 requests/limits（应用容器已满足；数据服务仍需单独补齐 writable scratch 设计）。
+- [x] 所有已渲染工作负载使用非 root、只读 root filesystem 和 requests/limits；数据服务的必要写入路径显式挂载 scratch volume（PR #8 / run `32610037141`）。
 - [x] Kafka 使用三个 KRaft broker、RF=3 和 `min.insync.replicas=2`。
 - [x] Redis 使用一主两从和三个 Sentinel。
 - [x] PostgreSQL 使用单副本和独立 5 GiB PVC。
@@ -333,7 +335,7 @@ flowchart LR
 
 ### CI/CD
 
-- [x] PR 阶段执行 Ruff、unit、integration、Gitleaks、Trivy、Syft 和 OPA/Conftest。
+- [x] PR 阶段执行 Ruff、unit、integration、Gitleaks、Trivy filesystem/config、Syft 和 OPA/Conftest；Build gate 依赖全部门禁（PR #8 / run `32610037141`）。
 - [x] Integration 使用 Actions service containers 启动 Redis、Kafka 和 PostgreSQL（PR #2 / run `32572298472`）。
 - [x] 执行 Alembic migration upgrade 和 schema validation（PR #2 / run `32572298472`）。
 - [x] 执行 Terraform fmt、validate 和 plan-only（run `32558083862`，隔离本地 backend、`enable_apply=false`）；当前未增加 Terraform test 文件。
@@ -348,7 +350,7 @@ flowchart LR
 
 ### OPA 与安全
 
-- [x] 发布必须依赖测试、Gitleaks、Trivy、Syft 和 OPA。
+- [x] 发布必须依赖测试、Gitleaks、Trivy filesystem/config、Syft 和 OPA；OPA 策略同时约束 Kubernetes apply 使用 Environment、Terraform apply 使用 `terraform-apply`（PR #8）。
 - [ ] staging、production、DR 和 destroy 必须使用对应 Environment。
 - [x] Kubernetes 禁止 privileged、hostPath、root、latest tag 和无资源限制容器。
 - [x] Production 必须满足副本、PDB、probe 和拓扑分布要求。
@@ -403,13 +405,13 @@ flowchart LR
 - [x] 测试最大数量、最大名义金额和 kill switch 风控规则。
 - [x] 测试订单接受、拒绝、成交和状态转换。
 - [x] 测试 Kafka 事件序列化、message key 和 schema version。
-- [ ] 测试 Worker event 去重和重复消费。
-- [ ] 测试 PostgreSQL upsert 和 `processed_events` 唯一约束。
+- [x] 测试 Worker event 去重和重复消费；重复 `event_id` 不重复写入投影。
+- [x] 测试 PostgreSQL upsert 和 `processed_events` 唯一约束（CI PostgreSQL service container）。
 - [x] 测试 Redis、Kafka 和 PostgreSQL 连通性（PR #2 / run `32572298472`）。
-- [ ] 测试 Redis/Kafka 故障时 Trading API readiness。
-- [ ] 测试 PostgreSQL 故障时 Trading API 仍可接受订单。
+- [x] 测试 Redis/Kafka 故障时 Trading API readiness 返回 degraded/503 语义。
+- [x] 测试 PostgreSQL 故障时 Trading API 仍可接受订单。
 - [ ] 测试 PostgreSQL 恢复后 Kafka backlog 自动追平。
-- [ ] 测试 Worker 不会在投影失败时提交 offset。
+- [x] 测试 Worker 不会在投影或 execution publish 失败时提交 offset；提交发生在所有投影动作之后。
 - [ ] 测试容器非 root、只读文件系统、SBOM 和 Trivy 门禁。
 - [ ] 执行 Terraform、OPA、Ansible 和 GitOps 验证。
 - [ ] 验证五环境和 DR 使用相同 digest。
