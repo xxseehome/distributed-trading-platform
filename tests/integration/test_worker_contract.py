@@ -8,7 +8,6 @@ import pytest
 from backend.models import OrderRequest, as_event
 from backend.worker import execution_for, project_event
 
-
 pytestmark = pytest.mark.skipif(
     os.getenv("CI_SERVICE_TESTS") != "1",
     reason="projection tests require the PostgreSQL service container",
@@ -96,12 +95,8 @@ def test_projection_deduplicates_events_and_updates_position():
             connection.execute(
                 "DELETE FROM trading.positions WHERE account_id = %s", (event["account_id"],)
             )
-            connection.execute(
-                "DELETE FROM trading.executions WHERE order_id = %s", (order_id,)
-            )
-            connection.execute(
-                "DELETE FROM trading.orders WHERE order_id = %s", (order_id,)
-            )
+            connection.execute("DELETE FROM trading.executions WHERE order_id = %s", (order_id,))
+            connection.execute("DELETE FROM trading.orders WHERE order_id = %s", (order_id,))
             connection.execute(
                 "DELETE FROM trading.processed_events WHERE event_id IN (%s, %s)",
                 (event["event_id"], execution["event_id"]),
