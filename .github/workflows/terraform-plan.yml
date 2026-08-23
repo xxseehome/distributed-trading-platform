@@ -39,6 +39,8 @@ jobs:
         env:
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           TF_STATE_REGION: ${{ vars.TF_STATE_REGION }}
+          TF_VAR_image_id: ${{ matrix.state == 'dr' && vars.TF_BEIJING_IMAGE_ID || vars.TF_HANGZHOU_IMAGE_ID }}
+          TF_VAR_zone_ids: ${{ matrix.state == 'dr' && vars.TF_BEIJING_ZONE_IDS || vars.TF_HANGZHOU_ZONE_IDS }}
         run: |
           test -n "$TF_STATE_BUCKET"
           test -n "$TF_STATE_REGION"
