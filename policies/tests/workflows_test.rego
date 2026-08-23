@@ -35,3 +35,41 @@ test_unrelated_job_is_rejected if {
   }
   count(result) > 0
 }
+
+test_kubernetes_apply_requires_environment if {
+  result := deny with input as {
+    "permissions": {"contents": "read"},
+    "jobs": {
+      "deploy": {
+        "steps": [{"run": "kubectl apply -f rendered.yaml"}]
+      }
+    }
+  }
+  count(result) > 0
+}
+
+test_kubernetes_apply_with_environment_is_allowed if {
+  result := deny with input as {
+    "permissions": {"contents": "read"},
+    "jobs": {
+      "deploy": {
+        "environment": "staging",
+        "steps": [{"run": "kubectl apply -f rendered.yaml"}]
+      }
+    }
+  }
+  count(result) == 0
+}
+
+test_terraform_apply_requires_protected_environment if {
+  result := deny with input as {
+    "permissions": {"contents": "read"},
+    "jobs": {
+      "apply": {
+        "environment": "staging",
+        "steps": [{"run": "terraform apply tfplan"}]
+      }
+    }
+  }
+  count(result) > 0
+}

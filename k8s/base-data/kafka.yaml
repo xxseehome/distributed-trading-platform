@@ -64,6 +64,7 @@ spec:
               value: trading-kraft-cluster-2026
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
           resources:
@@ -78,6 +79,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /bitnami/kafka
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data

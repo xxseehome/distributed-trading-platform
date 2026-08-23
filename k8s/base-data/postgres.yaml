@@ -39,6 +39,7 @@ spec:
                   optional: true
           securityContext:
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
           resources:
@@ -56,6 +57,11 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
   volumeClaimTemplates:
     - metadata:
         name: data
