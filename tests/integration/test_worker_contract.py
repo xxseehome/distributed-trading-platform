@@ -1,5 +1,5 @@
-import os
 from datetime import UTC, datetime
+import os
 from uuid import uuid4
 
 import psycopg
