@@ -54,6 +54,9 @@ jobs:
           terraform init -backend-config="$RUNNER_TEMP/backend.hcl"
       - name: Terraform plan only
         working-directory: terraform/environments/${{ matrix.state }}
+        env:
+          TF_VAR_image_id: ${{ matrix.state == 'dr' && vars.TF_BEIJING_IMAGE_ID || vars.TF_HANGZHOU_IMAGE_ID }}
+          TF_VAR_zone_ids: ${{ matrix.state == 'dr' && vars.TF_BEIJING_ZONE_IDS || vars.TF_HANGZHOU_ZONE_IDS }}
         run: terraform plan -out=tfplan -input=false -var='enable_apply=false'
       - uses: actions/upload-artifact@v4
         with:
