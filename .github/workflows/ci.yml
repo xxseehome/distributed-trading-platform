@@ -101,6 +101,19 @@ jobs:
           ignore-unfixed: true
           exit-code: 1
 
+  trivy-config:
+    name: Trivy configuration scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+
   syft:
     name: SBOM
     runs-on: ubuntu-latest
@@ -201,7 +214,7 @@ jobs:
 
   build:
     name: Build gate
-    needs: [quality, integration, gitleaks, trivy, syft, opa, terraform]
+    needs: [quality, integration, gitleaks, trivy, trivy-config, syft, opa, terraform]
     runs-on: ubuntu-latest
     permissions:
       contents: read

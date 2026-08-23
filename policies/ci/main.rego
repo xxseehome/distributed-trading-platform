@@ -2,7 +2,7 @@ package ci
 
 import rego.v1
 
-required_jobs := {"quality", "integration", "gitleaks", "trivy", "syft", "opa", "terraform", "build"}
+required_jobs := {"quality", "integration", "gitleaks", "trivy", "trivy-config", "syft", "opa", "terraform", "build"}
 
 deny contains msg if {
   missing := required_jobs - {name | input.jobs[name]}
@@ -28,6 +28,11 @@ deny contains msg if {
 deny contains msg if {
   not has_need("trivy")
   msg := "build must depend on the Trivy gate"
+}
+
+deny contains msg if {
+  not has_need("trivy-config")
+  msg := "build must depend on the Trivy configuration gate"
 }
 
 deny contains msg if {
