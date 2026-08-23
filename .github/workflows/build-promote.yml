@@ -2,13 +2,40 @@ name: Build once and promote immutable digest
 
 on:
   workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful main CI run ID for this exact commit
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 jobs:
+  verify-ci:
+    name: Verify successful CI for this commit
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Verify immutable source and successful gates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$CI_RUN_ID" =~ ^[0-9]+$ ]]
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CI_RUN_ID}")"
+          test "$(jq -r '.head_sha' <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r '.event' <<<"$run_json")" = "push"
+          test "$(jq -r '.head_branch' <<<"$run_json")" = "main"
+          test "$(jq -r '.status' <<<"$run_json")" = "completed"
+          test "$(jq -r '.conclusion' <<<"$run_json")" = "success"
+
   build:
     name: Build and sign once
+    needs: verify-ci
     runs-on: ubuntu-latest
     permissions:
       contents: read
