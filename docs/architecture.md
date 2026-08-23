@@ -6,6 +6,11 @@ about the PostgreSQL availability boundary: the order acceptance path is highly
 available in Production, while PostgreSQL is a single asynchronous projection
 primary in v1.
 
+Terraform state is stored in the existing private OSS bucket. GitHub Actions
+uses one shared concurrency group for plan, apply, and adoption; Tablestore is
+not created for state locking, so Terraform commands outside GitHub Actions
+must not run concurrently.
+
 ## Cloud and cluster topology
 
 ```mermaid
@@ -23,7 +28,7 @@ flowchart TB
     subgraph HZ["Hangzhou"]
         NP["Non-production K3s<br/>dev/test/perf/staging"]
         PROD["Production K3s<br/>Server 1 / AZ-A<br/>Server 2 / AZ-B<br/>Server 3 / AZ-C"]
-        HZDATA["ACR + OSS + Tablestore"]
+        HZDATA["ACR + OSS"]
     end
     subgraph BJ["Beijing"]
         DR["DR K3s<br/>single warm node"]
