@@ -106,10 +106,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Render Kustomize overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_root="$RUNNER_TEMP/trivy-config"
+          mkdir -p "$output_root"
+          for overlay in k8s/overlays/*; do
+            kubectl kustomize "$overlay" > "$output_root/$(basename "$overlay").yaml"
+          done
       - uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
-          scan-ref: .
+          scan-ref: ${{ runner.temp }}/trivy-config
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: 1

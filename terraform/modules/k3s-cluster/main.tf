@@ -17,9 +17,9 @@ resource "alicloud_vswitch" "this" {
 resource "alicloud_security_group" "this" {
   count               = var.enable_apply ? 1 : 0
   security_group_name = "${var.project_name}-sg"
-  description = "Private cluster security group; public ingress is not allowed."
-  vpc_id      = alicloud_vpc.this[0].id
-  tags        = var.tags
+  description         = "Private cluster security group; public ingress is not allowed."
+  vpc_id              = alicloud_vpc.this[0].id
+  tags                = var.tags
 }
 
 resource "alicloud_security_group_rule" "internal" {
