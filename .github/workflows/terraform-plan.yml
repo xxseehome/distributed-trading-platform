@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: terraform-shared-infrastructure
+  cancel-in-progress: false
+
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -33,23 +37,26 @@ jobs:
       - name: Terraform init
         working-directory: terraform/environments/${{ matrix.state }}
         env:
-          TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
-          TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
-          TF_OSS_ENDPOINT: ${{ secrets.TF_OSS_ENDPOINT }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_STATE_REGION: ${{ vars.TF_STATE_REGION }}
+          TF_VAR_image_id: ${{ matrix.state == 'dr' && vars.TF_BEIJING_IMAGE_ID || vars.TF_HANGZHOU_IMAGE_ID }}
+          TF_VAR_zone_ids: ${{ matrix.state == 'dr' && vars.TF_BEIJING_ZONE_IDS || vars.TF_HANGZHOU_ZONE_IDS }}
         run: |
           test -n "$TF_STATE_BUCKET"
-          test -n "$TF_LOCK_TABLE"
+          test -n "$TF_STATE_REGION"
           cat > "$RUNNER_TEMP/backend.hcl" <<EOF
           bucket = "$TF_STATE_BUCKET"
           key = "distributed-trading/${{ matrix.state }}/terraform.tfstate"
-          region = "cn-hangzhou"
-          prefix = "distributed-trading"
-          tablestore_table = "$TF_LOCK_TABLE"
-          tablestore_endpoint = "$TF_OSS_ENDPOINT"
+          region = "$TF_STATE_REGION"
+          encrypt = true
+          acl = "private"
           EOF
           terraform init -backend-config="$RUNNER_TEMP/backend.hcl"
       - name: Terraform plan only
         working-directory: terraform/environments/${{ matrix.state }}
+        env:
+          TF_VAR_image_id: ${{ matrix.state == 'dr' && vars.TF_BEIJING_IMAGE_ID || vars.TF_HANGZHOU_IMAGE_ID }}
+          TF_VAR_zone_ids: ${{ matrix.state == 'dr' && vars.TF_BEIJING_ZONE_IDS || vars.TF_HANGZHOU_ZONE_IDS }}
         run: terraform plan -out=tfplan -input=false -var='enable_apply=false'
       - uses: actions/upload-artifact@v4
         with:
