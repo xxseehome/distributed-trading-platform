@@ -11,6 +11,8 @@
 
 > 最近执行记录（2026-08-23）：PR #8 [run 32609932965](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32609932965) 通过后已合并到 `main`；主分支 [run 32610037141](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32610037141) 的 Contract/Worker integration、Terraform validation/plan-only、Gitleaks、Trivy filesystem/config、Syft、OPA/Conftest、Ruff、pytest 和 Build gate 全部通过。PR #8 将 Trivy config 扫描纳入发布依赖，补充了工作流 Environment/`terraform-apply` 策略测试，并为 Redis、Redis Sentinel、Kafka、PostgreSQL 和 topic Job 增加只读 root filesystem 与 scratch volume；未创建云资源、未执行 Terraform apply 或 Kubernetes 部署。Actions 的 Node.js 20 deprecation annotation 仍存在，但不影响结果。
 
+> 最近执行记录（2026-08-23）：PR #9（Worker 去重、PostgreSQL 投影唯一性、依赖故障 readiness、offset 提交顺序）和 PR #10（手动推广前的同 SHA 成功 CI 前置校验）均已合并；主分支 [run 32611104192](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32611104192) 全部通过。Alibaba CLI 只读盘点显示杭州当前仅有旧 `bookstore` 项目的 ECS/CLB，未发现本项目 trading 资源；未执行 Terraform apply、Kubernetes 部署或任何云资源创建。
+
 ## 1. 目标与总体架构
 
 - [x] 使用 GitHub Public Repository、Pull Request 和 Actions 实施代码、变更和 CI 门禁管理；Environments 与审批边界已配置，实际云部署仍待凭据与人工批准。
@@ -308,11 +310,11 @@ flowchart LR
 - [x] 创建 `infrastructure-plan`、`infrastructure-apply`、`dev`、`test`、`perf`、`staging`、`production`、`production-dr`、`dr-activate` 和 `destroy` Environments。
 - [x] apply、staging、production、DR 和 destroy 已配置 `xxseehome` 为 required reviewer；当前账号是唯一仓库协作者，`prevent_self_review=false`，后续可添加第二位 reviewer。
 - [x] 只有云访问 job 设置 `id-token: write`；PR #4 将 OIDC 权限收敛到 Terraform plan/apply 云访问 job，其他 job 不再继承该权限。
-- [ ] 检查并复用正确的 GitHub OIDC Provider，不复用旧角色和权限。
+- [x] 复用现有 `github-actions` GitHub OIDC Provider；通过 RAM 角色信任策略复核其 issuer、audience 和 `xxseehome/*` repository 范围，未修改共享角色或权限。
 - [ ] 不存在时创建独立 `github-actions-trading` Provider。
 - [ ] 创建最小权限 `github-trading-plan`、`github-trading-apply` 和 `github-trading-ops` 角色。
 - [ ] Trust Policy 限制到准确 repository 和 Environment subject。
-- [ ] GitHub 不保存长期 AccessKey。
+- [x] GitHub 工作流使用 RAM OIDC 短期凭证，不保存长期 AccessKey。
 - [ ] Terraform 使用 `foundation`、`primary` 和 `dr` 三个独立 state。
 - [x] 使用私有 OSS backend 和 GitHub Actions concurrency；不创建额外锁表。该方案只串行化 GitHub Actions，外部 Terraform 命令仍必须人工避免并发。
 - [ ] 所有资源使用 `Project`、`Owner`、`ManagedBy` 和 `ExpiresAt` 标签。
@@ -335,14 +337,14 @@ flowchart LR
 
 ### CI/CD
 
-- [x] PR 阶段执行 Ruff、unit、integration、Gitleaks、Trivy filesystem/config、Syft 和 OPA/Conftest；Build gate 依赖全部门禁（PR #8 / run `32610037141`）。
+- [x] PR 阶段执行 Ruff、unit、integration、Gitleaks、Trivy filesystem/config、Syft 和 OPA/Conftest；Build gate 依赖全部门禁（PR #8/#9/#10 / main run `32611104192`）。
 - [x] Integration 使用 Actions service containers 启动 Redis、Kafka 和 PostgreSQL（PR #2 / run `32572298472`）。
 - [x] 执行 Alembic migration upgrade 和 schema validation（PR #2 / run `32572298472`）。
 - [x] 执行 Terraform fmt、validate 和 plan-only（run `32558083862`，隔离本地 backend、`enable_apply=false`）；当前未增加 Terraform test 文件。
 - [x] 保存不可变 Terraform plan artifact；`terraform-plan` 按 state 和 commit SHA 上传、保留 7 天的 `tfplan` artifact（PR #4）。
 - [x] `infrastructure-apply` 审批后只 apply 已保存 plan；通过 `plan_run_id` 下载并定位经审核的 artifact，禁止重新 plan（PR #4）。
 - [ ] 通过 Cloud Assistant 和 Ansible 配置节点。
-- [x] 前端和后端镜像分别只构建一次并使用 Cosign 签名；手动推广要求提供同一 `main` commit 的成功 CI run ID，防止绕过安全门禁重新构建。
+- [x] 前端和后端镜像分别只构建一次并使用 Cosign 签名；手动推广要求提供同一 `main` commit 的成功 CI run ID，防止绕过安全门禁重新构建（PR #10）。
 - [x] 按 `dev → test → perf → staging → production` 推广相同 digest。
 - [ ] 相同 digest 复制到北京 ACR 并部署 production-dr。
 - [ ] 数据库迁移必须向后兼容并在应用切换前执行。
@@ -351,7 +353,7 @@ flowchart LR
 ### OPA 与安全
 
 - [x] 发布必须依赖测试、Gitleaks、Trivy filesystem/config、Syft 和 OPA；OPA 策略同时约束 Kubernetes apply 使用 Environment、Terraform apply 使用 `terraform-apply`（PR #8）。
-- [ ] staging、production、DR 和 destroy 必须使用对应 Environment。
+- [x] staging、production、DR 和 destroy 部署/销毁工作流均使用对应 GitHub Environment；未触发实际云端部署。
 - [x] Kubernetes 禁止 privileged、hostPath、root、latest tag 和无资源限制容器。
 - [x] Production 必须满足副本、PDB、probe 和拓扑分布要求。
 - [ ] PostgreSQL Secret 不得出现在 Git、日志、Terraform output 或 evidence 中。
@@ -412,7 +414,7 @@ flowchart LR
 - [x] 测试 PostgreSQL 故障时 Trading API 仍可接受订单。
 - [ ] 测试 PostgreSQL 恢复后 Kafka backlog 自动追平。
 - [x] 测试 Worker 不会在投影或 execution publish 失败时提交 offset；提交发生在所有投影动作之后。
-- [ ] 测试容器非 root、只读文件系统、SBOM 和 Trivy 门禁。
+- [x] 通过 OPA/Conftest、Trivy config、SBOM 和主分支 CI 验证容器非 root、只读文件系统和安全门禁（PR #8 / main run `32611104192`）。
 - [ ] 执行 Terraform、OPA、Ansible 和 GitOps 验证。
 - [ ] 验证五环境和 DR 使用相同 digest。
 
