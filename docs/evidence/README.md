@@ -2,7 +2,7 @@
 
 Store only redacted acceptance evidence here. Planned evidence includes:
 
-- final CI and Gitleaks/Trivy/OPA gates;
+- final CI and Gitleaks/Trivy/OPA gates (PR #8 / [main run 32610037141](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32610037141));
 - Terraform plan/apply and identical image digest promotion;
 - five environment and DR renders;
 - Production one-node resilience test;

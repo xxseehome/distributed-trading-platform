@@ -191,6 +191,33 @@ def execution_for(event: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+async def process_message(
+    message: Any,
+    conn: psycopg.Connection[Any],
+    consumer: AIOKafkaConsumer,
+    producer: AIOKafkaProducer,
+    topic_prefix: str,
+    schema: str,
+) -> None:
+    """Project one Kafka message before committing its offset.
+
+    Keeping the commit as the final operation makes the delivery contract
+    explicit and testable: a projection or follow-up execution publish error
+    leaves the offset uncommitted so Kafka can redeliver the event.
+    """
+
+    event = json.loads(message.value)
+    await asyncio.to_thread(project_event, conn, event, schema)
+    if event["event_type"] == "OrderAcceptedV1":
+        execution = execution_for(event)
+        await producer.send_and_wait(
+            f"{topic_prefix}.executions.v1",
+            json.dumps(execution).encode(),
+            key=event["order_id"].encode(),
+        )
+    await consumer.commit()
+
+
 async def run() -> None:
     global worker_ready
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -216,16 +243,14 @@ async def run() -> None:
                 worker_ready = True
                 try:
                     async for message in consumer:
-                        event = json.loads(message.value)
-                        await asyncio.to_thread(project_event, conn, event, schema_name())
-                        if event["event_type"] == "OrderAcceptedV1":
-                            execution = execution_for(event)
-                            await producer.send_and_wait(
-                                f"{topic_prefix}.executions.v1",
-                                json.dumps(execution).encode(),
-                                key=event["order_id"].encode(),
-                            )
-                        await consumer.commit()
+                        await process_message(
+                            message,
+                            conn,
+                            consumer,
+                            producer,
+                            topic_prefix,
+                            schema_name(),
+                        )
                 finally:
                     worker_ready = False
                     await producer.stop()

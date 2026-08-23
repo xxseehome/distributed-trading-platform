@@ -1,8 +1,12 @@
+import asyncio
+import json
+
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app, runtime
 from backend.models import OrderRequest, as_event
-from backend.worker import execution_for
+from backend.worker import execution_for, process_message
 
 client = TestClient(app)
 
@@ -175,3 +179,141 @@ def test_event_contract_and_execution():
 def test_admin_requires_token():
     response = client.post("/api/admin/kill-switch", json={"enabled": True, "reason": "no token"})
     assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_cluster_readiness_reports_redis_and_kafka_failure(monkeypatch):
+    monkeypatch.setattr(runtime, "cluster_mode", True)
+    monkeypatch.setattr(runtime, "redis", None)
+    monkeypatch.setattr(runtime, "producer", None)
+    monkeypatch.setattr(runtime, "_redis_ready", False)
+    monkeypatch.setattr(runtime, "_kafka_ready", False)
+
+    readiness = await runtime.readiness()
+
+    assert readiness == {
+        "status": "degraded",
+        "ready": False,
+        "environment": runtime.environment,
+        "dependencies": {
+            "redis": "unavailable",
+            "kafka": "unavailable",
+            "postgresql": "async_projection_only",
+        },
+    }
+
+
+@pytest.mark.asyncio
+async def test_postgres_failure_does_not_block_order_acceptance(monkeypatch):
+    monkeypatch.setattr(runtime, "cluster_mode", True)
+    monkeypatch.setattr(runtime, "redis", None)
+    monkeypatch.setattr(runtime, "_kafka_ready", True)
+    monkeypatch.setattr(runtime, "publish", lambda *args, **kwargs: asyncio.sleep(0))
+    monkeypatch.setattr(runtime, "store_order", lambda *args, **kwargs: asyncio.sleep(0))
+
+    response = client.post(
+        "/api/orders",
+        headers={"Idempotency-Key": "postgres-outage-key"},
+        json=order_body("postgres-outage"),
+    )
+
+    assert response.status_code == 202
+    assert response.json()["status"] == "accepted"
+
+
+class _FakeMessage:
+    def __init__(self, event: dict[str, object]):
+        self.value = json.dumps(event).encode()
+
+
+class _FakeConsumer:
+    def __init__(self):
+        self.commits = 0
+
+    async def commit(self):
+        self.commits += 1
+
+
+class _FakeProducer:
+    def __init__(self):
+        self.messages: list[tuple[str, bytes, bytes]] = []
+
+    async def send_and_wait(self, topic: str, value: bytes, key: bytes):
+        self.messages.append((topic, value, key))
+
+
+class _FailingProducer(_FakeProducer):
+    async def send_and_wait(self, topic: str, value: bytes, key: bytes):
+        raise RuntimeError("execution publish unavailable")
+
+
+@pytest.mark.asyncio
+async def test_worker_commits_only_after_projection_and_publish(monkeypatch):
+    event = {
+        "event_id": "event-worker-contract",
+        "event_type": "OrderAcceptedV1",
+        "order_id": "order-worker-contract",
+        "client_order_id": "client-worker-contract",
+        "account_id": "account-worker-contract",
+        "symbol": "ALPHA",
+        "side": "BUY",
+        "quantity": "1",
+        "limit_price": "100",
+        "occurred_at": "2026-01-01T00:00:00+00:00",
+        "trace_id": "trace-worker-contract",
+    }
+    consumer = _FakeConsumer()
+    producer = _FakeProducer()
+    monkeypatch.setattr("backend.worker.project_event", lambda *args: True)
+
+    await process_message(_FakeMessage(event), object(), consumer, producer, "test", "trading")
+
+    assert consumer.commits == 1
+    assert producer.messages[0][0] == "test.executions.v1"
+
+
+@pytest.mark.asyncio
+async def test_worker_does_not_commit_when_projection_fails(monkeypatch):
+    event = {
+        "event_id": "event-worker-failure",
+        "event_type": "OrderAcceptedV1",
+        "order_id": "order-worker-failure",
+    }
+    consumer = _FakeConsumer()
+    producer = _FakeProducer()
+
+    def fail_projection(*args):
+        raise RuntimeError("projection unavailable")
+
+    monkeypatch.setattr("backend.worker.project_event", fail_projection)
+
+    with pytest.raises(RuntimeError, match="projection unavailable"):
+        await process_message(_FakeMessage(event), object(), consumer, producer, "test", "trading")
+
+    assert consumer.commits == 0
+
+
+@pytest.mark.asyncio
+async def test_worker_does_not_commit_when_execution_publish_fails(monkeypatch):
+    event = {
+        "event_id": "event-publish-failure",
+        "event_type": "OrderAcceptedV1",
+        "order_id": "order-publish-failure",
+        "client_order_id": "client-publish-failure",
+        "account_id": "account-publish-failure",
+        "symbol": "ALPHA",
+        "side": "BUY",
+        "quantity": "1",
+        "limit_price": "100",
+        "occurred_at": "2026-01-01T00:00:00+00:00",
+        "trace_id": "trace-publish-failure",
+    }
+    consumer = _FakeConsumer()
+    monkeypatch.setattr("backend.worker.project_event", lambda *args: True)
+
+    with pytest.raises(RuntimeError, match="execution publish unavailable"):
+        await process_message(
+            _FakeMessage(event), object(), consumer, _FailingProducer(), "test", "trading"
+        )
+
+    assert consumer.commits == 0
