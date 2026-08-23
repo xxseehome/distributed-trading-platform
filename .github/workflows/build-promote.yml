@@ -122,8 +122,8 @@ jobs:
           echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
       - name: Apply exact image digests
         env:
-          API_IMAGE: ghcr.io/${{ github.repository_owner }}/distributed-trading-api@${{ needs.build.outputs.api_digest }}
-          FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend@${{ needs.build.outputs.frontend_digest }}
+          API_IMAGE: ghcr.io/${{ github.repository_owner }}/distributed-trading-api:${{ github.sha }}@${{ needs.build.outputs.api_digest }}
+          FRONTEND_IMAGE: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend:${{ github.sha }}@${{ needs.build.outputs.frontend_digest }}
         run: |
           kubectl kustomize "k8s/overlays/${{ matrix.environment }}" \
             | sed -e "s#registry.invalid/distributed-trading/trading-api:bootstrap#$API_IMAGE#g" \
