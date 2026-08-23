@@ -13,6 +13,8 @@
 
 > 最近执行记录（2026-08-23）：PR #9（Worker 去重、PostgreSQL 投影唯一性、依赖故障 readiness、offset 提交顺序）和 PR #10（手动推广前的同 SHA 成功 CI 前置校验）均已合并；主分支 [run 32611104192](https://github.com/xxseehome/distributed-trading-platform/actions/runs/32611104192) 全部通过。Alibaba CLI 只读盘点显示杭州当前仅有旧 `bookstore` 项目的 ECS/CLB，未发现本项目 trading 资源；未执行 Terraform apply、Kubernetes 部署或任何云资源创建。
 
+> 最近执行记录（2026-08-23）：为后续 staging 韧性演练收紧 `resilience.yml`：从 staging Environment secret 配置 KUBECONFIG，要求 40 位 commit SHA 和 staging URL，验证三个工作负载各有两个 Ready 副本，按 immutable `tag@digest` 检查来源 SHA，只选择并删除一个 API Pod 和一个 Frontend Pod，并在替换期间持续执行 HTTP `/healthz` 探测。`build-promote.yml` 现在以 `commit-sha@digest` 推广同一不可变镜像。该工作流尚未运行，因为 trading K3s 集群和 KUBECONFIG 尚未创建；未执行云资源操作。
+
 ## 1. 目标与总体架构
 
 - [x] 使用 GitHub Public Repository、Pull Request 和 Actions 实施代码、变更和 CI 门禁管理；Environments 与审批边界已配置，实际云部署仍待凭据与人工批准。
