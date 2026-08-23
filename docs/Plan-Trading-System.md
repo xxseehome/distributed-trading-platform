@@ -342,7 +342,7 @@ flowchart LR
 - [x] 保存不可变 Terraform plan artifact；`terraform-plan` 按 state 和 commit SHA 上传、保留 7 天的 `tfplan` artifact（PR #4）。
 - [x] `infrastructure-apply` 审批后只 apply 已保存 plan；通过 `plan_run_id` 下载并定位经审核的 artifact，禁止重新 plan（PR #4）。
 - [ ] 通过 Cloud Assistant 和 Ansible 配置节点。
-- [x] 前端和后端镜像分别只构建一次并使用 Cosign 签名。
+- [x] 前端和后端镜像分别只构建一次并使用 Cosign 签名；手动推广要求提供同一 `main` commit 的成功 CI run ID，防止绕过安全门禁重新构建。
 - [x] 按 `dev → test → perf → staging → production` 推广相同 digest。
 - [ ] 相同 digest 复制到北京 ACR 并部署 production-dr。
 - [ ] 数据库迁移必须向后兼容并在应用切换前执行。
