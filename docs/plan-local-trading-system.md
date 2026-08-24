@@ -565,7 +565,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 - [ ] 从 HTTP 请求追踪到 Kafka event、Worker 和 PostgreSQL projection。
 - [ ] 人工触发 Kafka lag、PostgreSQL unavailable 和 API error 告警。
 - [ ] Alertmanager 触发 GitHub Incident workflow。
-- [ ] Incident Issue 包含集群、版本、digest、Pod、Kafka、Redis、PostgreSQL 和日志摘要。
+- [x] Incident Issue 包含集群、版本、digest、Pod、Kafka、Redis、PostgreSQL 和日志摘要。（Issue #18 已补充完整演练摘要；Alertmanager 自动触发仍未宣称）
 - [x] kill switch、restart、consumer resume 和 DR activation 必须经过 GitHub Environment approval。（`ops-local.yml` 使用 `local-ops`；`dr-drill-local.yml` 使用 `production-dr`；`docs/evidence/approved-ops.md`）
 - [x] 文档建立 Grafana/GitHub 对 Splunk ITSI 和 SOAR 的能力映射，不宣称部署 Splunk。（`docs/observability-splunk-mapping.md`）
 
