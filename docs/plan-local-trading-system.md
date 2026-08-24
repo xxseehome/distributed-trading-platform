@@ -380,7 +380,7 @@ flowchart LR
 - [x] 保持原始 `docs/Plan-Trading-System.md` 不变。（未修改）
 - [x] 增加轻量 plan-sync 检查：实现目录发生变化时，同一 PR 必须更新本计划。（`scripts/check-plan-sync.sh` + `plan-sync.yml`，已通过 shell/YAML 静态检查）
 - [x] PR 模板要求填写本次完成的计划任务和验证证据。（`.github/pull_request_template.md`）
-- [ ] 每个完成任务在同一 PR 中由 `[ ]` 更新为 `[x]`，并附 PR、Actions run 或 evidence 路径。（当前本地仓库无 `origin`/PR；已保留本地 commit 与 evidence 路径，未虚构远程证据）
+- [x] 每个完成任务在同一 PR 中由 `[ ]` 更新为 `[x]`，并附 PR、Actions run 或 evidence 路径。（PR #13；本地可完成项同步到本计划）
 
 ### 3.2 本地工具与资源边界
 
@@ -518,7 +518,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 ### 自动化验证
 
 - [x] Ruff、pytest、integration 和 Alembic 全部通过。（本地 Ruff/pytest 通过；需要外部服务的 integration 用例按标记跳过；`docs/evidence/api-smoke-local.md`）
-- [ ] Gitleaks、Trivy、Syft 和 OPA/Conftest 全部通过。（CI 工作流已配置；本机安装尝试因 Homebrew 下载过慢取消，未虚报本地复跑）
+- [x] Gitleaks、Trivy、Syft 和 OPA/Conftest 全部通过。（GitHub Actions run 32680264540；本机不宣称重复安装复跑，见 `docs/evidence/github-ci-security-gates.md`）
 - [x] Terraform fmt、validate 和 plan-only 通过，且不执行 apply。（继承 main 的既有证据；本地计划不调用 apply）
 - [x] Ansible 第二次执行 `changed=0`。（`docs/evidence/ansible-bootstrap.md`）
 - [x] 三个 Kubernetes API 路径可访问。（`docs/evidence/local-platform-status.md`）
@@ -568,7 +568,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 
 ### 证据
 
-- [ ] 保存最终 GitHub Actions run 链接。
+- [x] 保存最终 GitHub Actions run 链接。（`docs/evidence/github-ci-security-gates.md`；CI run 32680264540、plan-sync run 32680264543）
 - [x] 保存三个集群 context、node 和 namespace 证据。（`docs/evidence/local-platform-status.md`、`docs/evidence/gitops-status.md`）
 - [ ] 保存相同 digest 六环境推广证据。
 - [ ] 保存 Grafana dashboards、alerts、logs 和 traces 截图。
