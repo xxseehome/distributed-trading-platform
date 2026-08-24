@@ -392,7 +392,8 @@ flowchart LR
 - [x] 对所有下载校验 SHA256；官方源缓慢时只使用具有相同校验值的中国镜像。（`LOCAL_TOOL_MIRROR_BASE` 仅允许等值校验通过的镜像）
 - [x] 第二次执行 Ansible 必须显示 `changed=0`。（`docs/evidence/ansible-bootstrap.md`）
 - [x] 将 `.tools/`、`.runtime/`、kubeconfig、备份和临时凭证加入忽略规则。（`.gitignore`）
-- [x] 设置总 Pod memory requests `≤10 GiB`、可观测性 requests `≤3 GiB`、总 PVC `≤50 GiB`。（实测 4236 MiB、1152 MiB、17 GiB；`docs/evidence/local-platform-status.md`）
+- [x] 设置总 Pod memory requests `≤10 GiB`、可观测性 requests `≤3 GiB`、总 PVC `≤50 GiB`。（历史低资源 profile 为 4236 MiB/17 GiB；2026-08-24 当前运行态为 7564 MiB/38 GiB，见 `docs/evidence/local-resource-capacity.md`）
+- [x] 核验六个逻辑部署目标的本地容量边界：namespace/vCluster 均存在；production 全量运行、non-production/DR 按串行或温备方式运行；全量六环境并行预计约 11.58 GiB，超过当前 7.65 GiB Docker memory limit，因此不并行启动。（`docs/evidence/local-resource-capacity.md`）
 
 ### 3.3 三逻辑集群
 
@@ -560,7 +561,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 
 ### 可观测性与事件响应
 
-- [ ] Grafana 显示 metrics、logs 和 traces。
+- [ ] Grafana 显示 metrics、logs 和 traces。（2026-08-24 API 验证：Trading Overview 存在、Prometheus 返回 3 个 production API series；Loki 无标签、Tempo 无 trace，完整 logs/traces 仍未完成，见 `docs/evidence/observability-status.md`）
 - [ ] 从 HTTP 请求追踪到 Kafka event、Worker 和 PostgreSQL projection。
 - [ ] 人工触发 Kafka lag、PostgreSQL unavailable 和 API error 告警。
 - [ ] Alertmanager 触发 GitHub Incident workflow。

@@ -22,14 +22,16 @@ while IFS= read -r path; do
 done < <(git diff --name-only "$base_ref"...HEAD)
 implementation_change=false
 plan_changed=false
-for path in "${changed[@]}"; do
-  [[ "$path" == "$plan_file" ]] && plan_changed=true
-  case "$path" in
-    .github/*|ansible/*|backend/*|frontend/*|gitops/*|k8s/*|observability/*|scripts/*|terraform/*)
-      implementation_change=true
-      ;;
-  esac
-done
+if ((${#changed[@]} > 0)); then
+  for path in "${changed[@]}"; do
+    [[ "$path" == "$plan_file" ]] && plan_changed=true
+    case "$path" in
+      .github/*|ansible/*|backend/*|frontend/*|gitops/*|k8s/*|observability/*|scripts/*|terraform/*)
+        implementation_change=true
+        ;;
+    esac
+  done
+fi
 
 if [[ "$implementation_change" == true && "$plan_changed" != true ]]; then
   echo "Implementation files changed without $plan_file" >&2
