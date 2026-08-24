@@ -5,6 +5,8 @@
 > 当前状态：本地三 server K3s、non-production/DR vCluster、生产数据面与核心可观测性已运行并通过 smoke 验证；DR 备份恢复演练已完成并清理为 0 副本；API/Worker 已统一到同一修复镜像配置 digest；Docker Desktop 当前分配约 7.65 GiB。
 > 原则：最大化复用现有代码与 GitHub Actions，不创建阿里云资源，不产生新增云费用。
 
+最近执行记录（2026-08-24）：修复本地 `127.0.0.1:8080` 直接访问的 Ingress 404 兜底路由；GitHub PR #13 已 squash 合并，最新 CI run `32680764860` 的 Gitleaks、Trivy、Syft、OPA/Conftest、代码质量、集成测试、Terraform plan-only 和 Build gate 全部通过；新增 `docs/acceptance-matrix.md` 映射 PDF/SRE 要求与本地证据。未创建或修改阿里云资源。
+
 任务状态：
 
 - `[x]`：已有代码、配置或验证证据支持。
@@ -574,7 +576,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 - [ ] 保存 Grafana dashboards、alerts、logs 和 traces 截图。
 - [x] 保存 Production server、Redis、Kafka、PostgreSQL 故障演练输出。（`docs/evidence/production-server-failover.md`、`docs/evidence/production-redis-kafka-resilience.md`、`docs/evidence/kafka-postgres-resilience.md`；同时记录了本地入口超时限制）
 - [x] 保存 DR 恢复结果、PostgreSQL 行数、健康接口和清理状态。（`docs/evidence/dr-recovery.md`）
-- [ ] 更新 PDF 要求、附加 SRE 要求、实现和证据之间的验收矩阵。
+- [x] 更新 PDF 要求、附加 SRE 要求、实现和证据之间的验收矩阵。（`docs/acceptance-matrix.md`；明确本地实验、GitHub CI 和云资源跳过边界）
 
 ## 5. 固定边界与状态同步
 
