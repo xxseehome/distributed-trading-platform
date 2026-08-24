@@ -1,0 +1,25 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: GitRepository
+metadata:
+  name: distributed-trading-platform
+  namespace: flux-system
+spec:
+  interval: 1m
+  ref:
+    branch: main
+  url: https://github.com/xxseehome/distributed-trading-platform.git
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: platform
+  namespace: flux-system
+spec:
+  interval: 1m
+  path: ./gitops/platform
+  prune: false
+  sourceRef:
+    kind: GitRepository
+    name: distributed-trading-platform
+  timeout: 5m
+  wait: true
