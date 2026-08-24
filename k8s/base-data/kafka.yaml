@@ -70,7 +70,11 @@ spec:
             allowPrivilegeEscalation: false
             runAsUser: 1000
             runAsGroup: 1000
-            readOnlyRootFilesystem: true
+            # The Apache Kafka image writes generated KRaft configuration
+            # below /opt/kafka/config during startup. Keep the container
+            # non-root and drop all capabilities, but do not make its root
+            # filesystem read-only; that would prevent the broker from booting.
+            readOnlyRootFilesystem: false
             capabilities:
               drop: [ALL]
           resources:

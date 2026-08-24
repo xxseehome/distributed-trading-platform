@@ -462,7 +462,7 @@ flowchart LR
 ### 3.7 安全与合规
 
 - [x] CI 已包含 Gitleaks、Trivy、Syft 和 OPA/Conftest。
-- [x] Kubernetes manifests 已禁止 privileged、hostPath、root、latest tag 和无资源限制容器。
+- [x] Kubernetes manifests 已禁止 privileged、hostPath、root、latest tag 和无资源限制容器；Kafka 官方镜像保留唯一的可记录例外：非 root、无 capabilities 但根文件系统可写，以生成 KRaft 配置。
 - [x] 部署 Gatekeeper 并验证约束资源已安装。（audit `1/1`、controller-manager `3/3` Ready；`docs/evidence/security-status.md`）
 - [ ] 执行 kube-bench 并记录 k3d/Docker Desktop 适用性例外。
 - [x] 保留 Falco 规则和静态验证。（`gitops/platform/falco-rules.yaml`；不宣称 Docker Desktop eBPF）
