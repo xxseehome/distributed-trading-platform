@@ -36,3 +36,13 @@ The hosted GitHub Incident workflow completed successfully and created [Issue
 #18](https://github.com/xxseehome/distributed-trading-platform/issues/18) for
 the Pod replacement drill. The issue is a drill record; it is not evidence of
 an automatically triggered Alertmanager-to-GitHub integration.
+
+## Dashboard captures
+
+- `grafana-trading-overview-20260824.png` shows the provisioned Trading
+  Overview panels for order acceptance, latency, Pod readiness and scrape
+  targets.
+- `grafana-alertmanager-20260824.png` shows the provisioned Alertmanager
+  dashboard. No active notification series were present during the low-load
+  capture; baseline local-k3d alerts remain visible through Alertmanager's
+  API and are not suppressed.
