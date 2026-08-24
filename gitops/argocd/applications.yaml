@@ -27,12 +27,23 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: production
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
+        - .spec.template.spec.containers[].env[] | select(.name == "COMMIT_SHA" or .name == "IMAGE_DIGEST")
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -48,9 +59,20 @@ spec:
   destination:
     server: https://dr.vcluster-dr
     namespace: production-dr
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
+        - .spec.template.spec.containers[].env[] | select(.name == "COMMIT_SHA" or .name == "IMAGE_DIGEST")
+    - group: apps
+      kind: StatefulSet
+      jqPathExpressions:
+        - .spec.template.spec.containers[].image
   syncPolicy:
     automated:
       prune: false
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
