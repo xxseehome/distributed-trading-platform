@@ -1,0 +1,76 @@
+apiVersion: templates.gatekeeper.sh/v1
+kind: ConstraintTemplate
+metadata:
+  name: k8srequiredresources
+spec:
+  crd:
+    spec:
+      names:
+        kind: K8sRequiredResources
+      validation:
+        openAPIV3Schema:
+          type: object
+          properties:
+            exemptNamespaces:
+              type: array
+              items:
+                type: string
+  targets:
+    - target: admission.k8s.gatekeeper.sh
+      rego: |
+        package k8srequiredresources
+
+        violation[{
+          "msg": "privileged containers are not allowed",
+          "details": {"container": container.name},
+        }] {
+          container := input.review.object.spec.containers[_]
+          container.securityContext.privileged == true
+        }
+
+        violation[{
+          "msg": "containers must define CPU and memory requests and limits",
+          "details": {"container": container.name},
+        }] {
+          container := input.review.object.spec.containers[_]
+          not container.resources.requests.cpu
+        }
+
+        violation[{
+          "msg": "containers must define CPU and memory requests and limits",
+          "details": {"container": container.name},
+        }] {
+          container := input.review.object.spec.containers[_]
+          not container.resources.requests.memory
+        }
+
+        violation[{
+          "msg": "containers must define CPU and memory requests and limits",
+          "details": {"container": container.name},
+        }] {
+          container := input.review.object.spec.containers[_]
+          not container.resources.limits.cpu
+        }
+
+        violation[{
+          "msg": "containers must define CPU and memory requests and limits",
+          "details": {"container": container.name},
+        }] {
+          container := input.review.object.spec.containers[_]
+          not container.resources.limits.memory
+        }
+---
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sRequiredResources
+metadata:
+  name: trading-pod-baseline
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces:
+      - kube-system
+      - gatekeeper-system
+      - falco
+      - observability

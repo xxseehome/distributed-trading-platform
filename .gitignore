@@ -13,4 +13,7 @@ build/
 coverage.xml
 htmlcov/
 *.screenshot.png
-
+.runtime/
+.tools/
+ansible/.retry/
+*.kubeconfig

@@ -1,0 +1,9 @@
+tempo:
+  reportingEnabled: false
+  retention: 6h
+persistence:
+  enabled: true
+  size: 1Gi
+resources:
+  requests: {cpu: 50m, memory: 128Mi}
+  limits: {cpu: 250m, memory: 384Mi}

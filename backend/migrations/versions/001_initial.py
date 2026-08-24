@@ -1,4 +1,6 @@
-"""Create the trading projection tables."""
+"""Create the environment-scoped trading projection tables."""
+
+import os
 
 from alembic import op
 
@@ -9,10 +11,13 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE SCHEMA IF NOT EXISTS trading")
+    schema = os.getenv("TRADING_SCHEMA", "trading")
+    if not schema.isidentifier() or not schema.islower():
+        raise ValueError("TRADING_SCHEMA must be a lowercase identifier")
+    op.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
     op.execute(
-        """
-        CREATE TABLE IF NOT EXISTS trading.orders (
+        f"""
+        CREATE TABLE IF NOT EXISTS "{schema}".orders (
           order_id text PRIMARY KEY,
           client_order_id text NOT NULL,
           account_id text NOT NULL,
@@ -25,9 +30,9 @@ def upgrade() -> None:
           updated_at timestamptz NOT NULL,
           trace_id text NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS trading.executions (
+        CREATE TABLE IF NOT EXISTS "{schema}".executions (
           execution_id text PRIMARY KEY,
-          order_id text NOT NULL REFERENCES trading.orders(order_id),
+          order_id text NOT NULL REFERENCES "{schema}".orders(order_id),
           account_id text NOT NULL,
           symbol text NOT NULL,
           filled_quantity numeric(18,8) NOT NULL,
@@ -35,14 +40,14 @@ def upgrade() -> None:
           executed_at timestamptz NOT NULL,
           trace_id text NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS trading.positions (
+        CREATE TABLE IF NOT EXISTS "{schema}".positions (
           account_id text NOT NULL,
           symbol text NOT NULL,
           net_quantity numeric(18,8) NOT NULL DEFAULT 0,
           updated_at timestamptz NOT NULL,
           PRIMARY KEY (account_id, symbol)
         );
-        CREATE TABLE IF NOT EXISTS trading.processed_events (
+        CREATE TABLE IF NOT EXISTS "{schema}".processed_events (
           event_id text PRIMARY KEY,
           event_type text NOT NULL,
           processed_at timestamptz NOT NULL
@@ -52,4 +57,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP SCHEMA IF EXISTS trading CASCADE")
+    schema = os.getenv("TRADING_SCHEMA", "trading")
+    if not schema.isidentifier() or not schema.islower():
+        raise ValueError("TRADING_SCHEMA must be a lowercase identifier")
+    op.execute(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE')

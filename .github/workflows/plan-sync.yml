@@ -1,0 +1,29 @@
+name: Plan synchronization
+
+on:
+  pull_request:
+    paths:
+      - ".github/**"
+      - "ansible/**"
+      - "backend/**"
+      - "frontend/**"
+      - "gitops/**"
+      - "k8s/**"
+      - "observability/**"
+      - "scripts/**"
+      - "terraform/**"
+      - "docs/plan-local-trading-system.md"
+
+permissions:
+  contents: read
+
+jobs:
+  plan-sync:
+    name: Require plan update for implementation changes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check plan synchronization
+        run: bash scripts/check-plan-sync.sh

@@ -14,13 +14,25 @@ deny contains msg if {
   job := input.jobs[name]
   job.permissions["id-token"] == "write"
   not exchanges_alibaba_oidc(job)
-  msg := sprintf("job %q requests id-token: write without Alibaba OIDC exchange", [name])
+  not exchanges_sigstore_oidc(job)
+  msg := sprintf("job %q requests id-token: write without an approved OIDC exchange", [name])
 }
 
 exchanges_alibaba_oidc(job) if {
   some index
   step := job.steps[index]
   contains(step.uses, "aliyun/configure-aliyun-credentials-action")
+}
+
+# Sigstore keyless signing also uses GitHub OIDC, but it is limited to the
+# immutable release job that installs Cosign and signs the exact digest.
+exchanges_sigstore_oidc(job) if {
+  some index
+  step := job.steps[index]
+  contains(step.run, "cosign sign")
+  some installer_index
+  installer := job.steps[installer_index]
+  contains(installer.uses, "sigstore/cosign-installer")
 }
 
 # Any workflow that applies Kubernetes resources must cross an explicit

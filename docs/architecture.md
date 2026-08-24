@@ -6,10 +6,11 @@ about the PostgreSQL availability boundary: the order acceptance path is highly
 available in Production, while PostgreSQL is a single asynchronous projection
 primary in v1.
 
-Terraform state is stored in the existing private OSS bucket. GitHub Actions
-uses one shared concurrency group for plan, apply, and adoption; Tablestore is
-not created for state locking, so Terraform commands outside GitHub Actions
-must not run concurrently.
+This local experiment keeps Terraform in fmt/validate/plan-only mode and does
+not access or create Alibaba Cloud resources. A future cloud run may reuse the
+existing private OSS state convention; Tablestore is intentionally not created
+for state locking in this low-cost experiment, so concurrent local Terraform
+commands are not allowed.
 
 ## Cloud and cluster topology
 
@@ -20,7 +21,7 @@ flowchart TB
     RAM["Alibaba RAM OIDC"]
     TF["Terraform"]
     CA["Cloud Assistant / Ansible"]
-    OBS["Grafana Cloud Free"]
+    OBS["Local Prometheus / Grafana / Loki / Tempo"]
 
     USER --> GH --> RAM --> TF
     RAM --> CA
@@ -74,7 +75,7 @@ flowchart LR
     SEC --> BUILD["Build once + Cosign"]
     BUILD --> DEV["dev"] --> TESTENV["test"] --> PERF["perf"] --> STAGE["staging approval"] --> PROD["production approval"]
     PROD --> DR["Beijing DR same digest"]
-    APP["API + Worker + Redis + Kafka + PostgreSQL"] --> ALLOY["Grafana Alloy"] --> GRAFANA["Grafana Cloud"]
+    APP["API + Worker + Redis + Kafka + PostgreSQL"] --> ALLOY["Grafana Alloy"] --> GRAFANA["Grafana"]
     GRAFANA --> INCIDENT["GitHub Incident + approved remediation"]
 ```
 

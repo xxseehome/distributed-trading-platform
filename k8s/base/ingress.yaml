@@ -17,3 +17,15 @@ spec:
                 name: frontend
                 port:
                   number: 80
+    # Local-only fallback: Docker Desktop users can open 127.0.0.1:8080
+    # without manually supplying a Host header. The explicit demo hostname
+    # above remains the preferred route for scripted checks.
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80

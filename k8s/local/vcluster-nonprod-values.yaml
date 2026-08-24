@@ -1,0 +1,37 @@
+controlPlane:
+  statefulSet:
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: 200m
+        memory: 2Gi
+  distro:
+    k3s:
+      enabled: true
+      image:
+        registry: ""
+        repository: rancher/k3s
+        tag: v1.31.6-k3s1
+      imagePullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+sync:
+  toHost:
+    pods:
+      rewriteHosts:
+        initContainer:
+          image: redis:7.4-alpine
+          resources:
+            requests:
+              cpu: 30m
+              memory: 64Mi
+            limits:
+              cpu: 30m
+              memory: 64Mi

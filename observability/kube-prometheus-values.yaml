@@ -1,0 +1,59 @@
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    replicas: 1
+    retention: 6h
+    resources:
+      requests: {cpu: 50m, memory: 128Mi}
+      limits: {cpu: 250m, memory: 256Mi}
+grafana:
+  enabled: true
+  initChownData:
+    enabled: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      resources:
+        requests: {cpu: 10m, memory: 16Mi}
+        limits: {cpu: 50m, memory: 32Mi}
+    datasources:
+      enabled: true
+      label: grafana_datasource
+      labelValue: "1"
+      searchNamespace: ALL
+      resources:
+        requests: {cpu: 10m, memory: 16Mi}
+        limits: {cpu: 50m, memory: 32Mi}
+  persistence:
+    enabled: true
+    size: 1Gi
+  resources:
+    requests: {cpu: 50m, memory: 128Mi}
+    limits: {cpu: 250m, memory: 256Mi}
+prometheusOperator:
+  # Admission webhook certificate jobs are unnecessary for this single-node
+  # local demonstration and require an additional API write path.
+  admissionWebhooks:
+    enabled: false
+prometheus:
+  enabled: true
+  prometheusSpec:
+    replicas: 1
+    retention: 6h
+    retentionSize: 1800MB
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: {storage: 2Gi}
+    resources:
+      requests: {cpu: 150m, memory: 512Mi}
+      limits: {cpu: 500m, memory: 1Gi}
+kubeStateMetrics:
+  enabled: true
+nodeExporter:
+  enabled: true
