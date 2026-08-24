@@ -560,7 +560,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 
 ### 可观测性与事件响应
 
-- [ ] Grafana 显示 metrics、logs 和 traces。
+- [ ] Grafana 显示 metrics、logs 和 traces。（2026-08-24 API 验证：Trading Overview 存在、Prometheus 返回 3 个 production API series；Loki 无标签、Tempo 无 trace，完整 logs/traces 仍未完成，见 `docs/evidence/observability-status.md`）
 - [ ] 从 HTTP 请求追踪到 Kafka event、Worker 和 PostgreSQL projection。
 - [ ] 人工触发 Kafka lag、PostgreSQL unavailable 和 API error 告警。
 - [ ] Alertmanager 触发 GitHub Incident workflow。

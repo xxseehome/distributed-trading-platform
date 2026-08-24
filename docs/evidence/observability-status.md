@@ -43,3 +43,17 @@ not automatically inherit that route. Domestic mirrors and locally imported
 images were used where available. The exporter omissions are intentional to
 keep the local experiment within the memory budget; Prometheus, Alertmanager,
 Grafana, Loki, Tempo, node-exporter and kube-state-metrics are healthy.
+
+## Grafana API verification (2026-08-24)
+
+The local Grafana service was port-forwarded temporarily and queried with the
+runtime Kubernetes Secret; no credential value was printed or saved.
+
+- `/api/health` returned HTTP 200, Grafana `11.6.0`, database `ok`.
+- `Trading Overview` (`trading-overview-local`) exists with six panels.
+- Prometheus, Loki, Tempo and Alertmanager data sources are registered.
+- A Prometheus query for `up{job="trading-api",namespace="production"}` returned
+  three series.
+- Loki returned an empty label set and Tempo returned zero traces during this
+  low-traffic check; therefore this is evidence of configured data sources and
+  metrics retrieval, not evidence of populated log/trace history.
