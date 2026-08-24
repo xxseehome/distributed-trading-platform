@@ -520,11 +520,14 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 ### 自动化验证
 
 - [x] Ruff、pytest、integration 和 Alembic 全部通过。（本地 Ruff/pytest 通过；需要外部服务的 integration 用例按标记跳过；`docs/evidence/api-smoke-local.md`）
-- [x] Gitleaks、Trivy、Syft 和 OPA/Conftest 全部通过。（GitHub Actions run 32680264540；本机不宣称重复安装复跑，见 `docs/evidence/github-ci-security-gates.md`）
+- [x] Gitleaks、Trivy、Syft 和 OPA/Conftest 全部通过。（GitHub Actions run 32693613787；本机不宣称重复安装复跑，见 `docs/evidence/github-ci-security-gates.md`）
 - [x] Terraform fmt、validate 和 plan-only 通过，且不执行 apply。（继承 main 的既有证据；本地计划不调用 apply）
 - [x] Ansible 第二次执行 `changed=0`。（`docs/evidence/ansible-bootstrap.md`）
 - [x] 三个 Kubernetes API 路径可访问。（`docs/evidence/local-platform-status.md`）
-- [ ] Flux 和 Argo CD 均为 Healthy/Synced。
+- [x] Flux Ready；Production Argo CD 为 `Synced/Healthy`，DR Argo CD 为
+  `Synced/Progressing`，因为 DR 按设计保持 0 副本且没有活动 Ingress
+  controller；该边界已记录在 `docs/evidence/gitops-status.md`，不将 DR
+  虚报为在线 Healthy。
 - [ ] 六个部署环境使用相同组件 digest。（六个 overlay 的静态替换验证已通过；真实 self-hosted runner apply/rollout 仍待执行）
 - [x] 六个环境逐一渲染并验证同一 commit/image metadata，Production 保持 3 副本、DR 保持 0 副本。（`docs/evidence/six-environment-render.md`；不执行六环境全量并行 apply）
 - [x] 所有 Pod resource requests 总量和 PVC 总量不超过计划上限。（`docs/evidence/local-platform-status.md`）
