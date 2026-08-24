@@ -20,6 +20,9 @@ API Pod resilience drill.
   capabilities; its root filesystem is intentionally writable because the
   Apache Kafka image generates KRaft configuration under
   `/opt/kafka/config` at startup.
+- Trivy KSV-0014 is allowed only for the three rendered Kafka overlay files,
+  with an expiry and reason recorded in `.trivyignore.yaml`; all other
+  workloads remain subject to the read-only-root check.
 
 ## Logs and traces boundary
 
