@@ -26,5 +26,6 @@ Store only redacted acceptance evidence here. Planned evidence includes:
 - CLB health, `/healthz`, market data and order acceptance;
 - Grafana SLO, Kafka lag, Redis failover and PostgreSQL projection lag.
 - current metrics, Kafka lag, Alertmanager, logs/traces boundary and Incident Issue (`observability-closeout.md`);
+- Grafana Trading Overview and Alertmanager captures (`grafana-trading-overview-20260824.png`, `grafana-alertmanager-20260824.png`).
 
 Do not store credentials, tokens, private keys, kubeconfigs or unredacted account IDs.
