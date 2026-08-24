@@ -119,6 +119,7 @@ jobs:
         with:
           scan-type: config
           scan-ref: ${{ runner.temp }}/trivy-config
+          ignorefile: .trivyignore.yaml
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: 1
