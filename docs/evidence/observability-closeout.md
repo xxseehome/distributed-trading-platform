@@ -16,6 +16,10 @@ API Pod resilience drill.
   clock/IO warnings) remain visible and are not suppressed.
 - PrometheusRule `trading-slo-rules` is present with availability, latency and
   API target-down rules.
+- The production Kafka overlay keeps the broker non-root and drops all Linux
+  capabilities; its root filesystem is intentionally writable because the
+  Apache Kafka image generates KRaft configuration under
+  `/opt/kafka/config` at startup.
 
 ## Logs and traces boundary
 
