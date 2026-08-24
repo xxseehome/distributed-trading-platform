@@ -574,7 +574,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 - [x] 保存最终 GitHub Actions run 链接。（`docs/evidence/github-ci-security-gates.md`；CI run 32680264540、plan-sync run 32680264543）
 - [x] 保存三个集群 context、node 和 namespace 证据。（`docs/evidence/local-platform-status.md`、`docs/evidence/gitops-status.md`）
 - [x] 保存相同 digest 六环境推广证据。（`docs/evidence/six-environment-render.md`；静态渲染验证，不执行六环境全量并行 apply）
-- [ ] 保存 Grafana dashboards、alerts、logs 和 traces 截图。
+- [x] 保存 Grafana dashboards、alerts、logs 和 traces 截图。（Trading Overview 与 Alertmanager 截图已保存；Loki 无采集标签、Tempo 无应用 spans 的边界记录见 `docs/evidence/observability-closeout.md`）
 - [x] 保存 Production server、Redis、Kafka、PostgreSQL 故障演练输出。（`docs/evidence/production-server-failover.md`、`docs/evidence/production-redis-kafka-resilience.md`、`docs/evidence/kafka-postgres-resilience.md`；同时记录了本地入口超时限制）
 - [x] 保存 DR 恢复结果、PostgreSQL 行数、健康接口和清理状态。（`docs/evidence/dr-recovery.md`）
 - [x] 更新 PDF 要求、附加 SRE 要求、实现和证据之间的验收矩阵。（`docs/acceptance-matrix.md`；明确本地实验、GitHub CI 和云资源跳过边界）
