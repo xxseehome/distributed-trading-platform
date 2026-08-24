@@ -70,7 +70,7 @@ spec:
             allowPrivilegeEscalation: false
             runAsUser: 1000
             runAsGroup: 1000
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
           resources:

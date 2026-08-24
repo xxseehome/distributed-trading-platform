@@ -33,6 +33,7 @@ spec:
             runAsUser: 0
             runAsGroup: 0
             allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
             capabilities:
               add: [CHOWN, FOWNER]
               drop: [ALL]
@@ -44,6 +45,8 @@ spec:
               mountPath: /var/lib/postgresql/data
             - name: run
               mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
       containers:
         - name: postgres
           image: postgres:16.4-alpine
@@ -66,7 +69,7 @@ spec:
             runAsNonRoot: true
             runAsUser: 70
             runAsGroup: 70
-            readOnlyRootFilesystem: false
+            readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
           resources:
