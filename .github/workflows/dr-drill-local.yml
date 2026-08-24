@@ -1,0 +1,49 @@
+name: Local DR drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Build-release-local run containing release.json
+        required: true
+        type: string
+      backup_run_id:
+        description: Run containing the approved PostgreSQL backup artifact
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: local-trading-platform
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: production-dr
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local runner
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Download release and backup artifacts
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.release_run_id }}
+          github-token: ${{ github.token }}
+          pattern: local-release-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+      - name: Download approved backup artifact
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.backup_run_id }}
+          github-token: ${{ github.token }}
+          pattern: postgres-backup-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/backup
+      - name: Activate DR from immutable release and backup
+        run: bash scripts/local-dr-drill.sh "$RUNNER_TEMP/release/release.json" "$(find "$RUNNER_TEMP/backup" -type f | head -1)"

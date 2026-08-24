@@ -1,0 +1,41 @@
+name: Local platform lifecycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Lifecycle action for the local platform
+        required: true
+        type: choice
+        options: [up, status, pause, resume, backup, assert, destroy]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-trading-platform
+  cancel-in-progress: false
+
+jobs:
+  lifecycle:
+    name: Local platform ${{ inputs.action }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: local-platform
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run local Ansible bootstrap
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Run lifecycle action
+        env:
+          ALLOW_LOCAL_DESTROY: ${{ inputs.action == 'destroy' && 'true' || 'false' }}
+        run: bash scripts/local-platform.sh "${{ inputs.action }}"
+      - name: Upload approved PostgreSQL backup
+        if: ${{ inputs.action == 'backup' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-backup-${{ github.run_id }}
+          path: .runtime/backups
+          retention-days: 7

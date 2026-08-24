@@ -24,6 +24,21 @@ SCHEMA_RE = re.compile(r"^[a-z][a-z0-9_]{0,30}$")
 worker_ready = False
 
 
+def structured_log(event: str, **fields: Any) -> None:
+    LOG.info(
+        json.dumps(
+            {
+                "event": event,
+                "environment": os.getenv("TRADING_ENV", "local"),
+                "commit_sha": os.getenv("COMMIT_SHA", "unknown"),
+                "image_digest": os.getenv("IMAGE_DIGEST", "unknown"),
+                **fields,
+            },
+            separators=(",", ":"),
+        )
+    )
+
+
 def postgres_dsn() -> str:
     return os.getenv(
         "POSTGRES_DSN",
@@ -224,17 +239,22 @@ async def run() -> None:
     bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
     environment = os.getenv("TRADING_ENV", "local")
     topic_prefix = os.getenv("KAFKA_TOPIC_PREFIX", environment)
+    structured_log("worker_started")
     topics = [f"{topic_prefix}.orders.accepted.v1", f"{topic_prefix}.executions.v1"]
-    consumer = AIOKafkaConsumer(
-        *topics,
-        bootstrap_servers=bootstrap,
-        group_id=f"{environment}-projection",
-        enable_auto_commit=False,
-        auto_offset_reset="earliest",
-    )
-    producer = AIOKafkaProducer(bootstrap_servers=bootstrap, enable_idempotence=True, acks="all")
     _health_server = await start_health_server(int(os.getenv("WORKER_HEALTH_PORT", "8001")))
     while True:
+        # A stopped aiokafka client cannot be started again after a database
+        # failure. Recreate both clients so uncommitted offsets are redelivered.
+        consumer = AIOKafkaConsumer(
+            *topics,
+            bootstrap_servers=bootstrap,
+            group_id=f"{environment}-projection",
+            enable_auto_commit=False,
+            auto_offset_reset="earliest",
+        )
+        producer = AIOKafkaProducer(
+            bootstrap_servers=bootstrap, enable_idempotence=True, acks="all"
+        )
         try:
             with psycopg.connect(postgres_dsn(), connect_timeout=3) as conn:
                 ensure_schema(conn, schema_name())
@@ -253,24 +273,44 @@ async def run() -> None:
                         )
                 finally:
                     worker_ready = False
-                    await producer.stop()
-                    await consumer.stop()
         except Exception:
             worker_ready = False
-            LOG.exception("worker dependency loop failed; retrying without committing offsets")
+            LOG.exception(
+                json.dumps(
+                    {
+                        "event": "worker_dependency_loop_failed",
+                        "environment": environment,
+                        "commit_sha": os.getenv("COMMIT_SHA", "unknown"),
+                        "image_digest": os.getenv("IMAGE_DIGEST", "unknown"),
+                    },
+                    separators=(",", ":"),
+                )
+            )
+        finally:
+            worker_ready = False
+            try:
+                await producer.stop()
+            except Exception:
+                LOG.exception("producer_stop_failed")
+            try:
+                await consumer.stop()
+            except Exception:
+                LOG.exception("consumer_stop_failed")
             await asyncio.sleep(5)
 
 
 async def start_health_server(port: int) -> asyncio.AbstractServer:
     async def handle(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         global worker_ready
-        await reader.read(1024)
-        code = 200 if worker_ready else 503
-        phrase = "OK" if worker_ready else "Service Unavailable"
+        request = (await reader.read(1024)).splitlines()
+        path = request[0].decode("ascii", "ignore").split(" ")[1] if request else "/healthz"
+        is_ready_probe = path == "/readyz"
+        code = 200 if (not is_ready_probe or worker_ready) else 503
+        phrase = "OK" if code == 200 else "Service Unavailable"
         body = ("ready" if worker_ready else "degraded").encode()
         writer.write(
-            f"HTTP/1.1 {code} {phrase}\\r\\nContent-Length: {len(body)}\\r\\n"
-            "Content-Type: text/plain\\r\\nConnection: close\\r\\n\\r\\n".encode()
+            f"HTTP/1.1 {code} {phrase}\r\nContent-Length: {len(body)}\r\n"
+            "Content-Type: text/plain\r\nConnection: close\r\n\r\n".encode()
             + body
         )
         await writer.drain()

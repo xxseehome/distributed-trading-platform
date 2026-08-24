@@ -1,0 +1,123 @@
+name: Build local release once
+
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful main CI run ID for this exact commit
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  verify-ci:
+    name: Verify successful main CI
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$CI_RUN_ID" =~ ^[0-9]+$ ]]
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${CI_RUN_ID}")"
+          test "$(jq -r .head_sha <<<"$run_json")" = "$GITHUB_SHA"
+          test "$(jq -r .event <<<"$run_json")" = "push"
+          test "$(jq -r .head_branch <<<"$run_json")" = "main"
+          test "$(jq -r .status <<<"$run_json")" = "completed"
+          test "$(jq -r .conclusion <<<"$run_json")" = "success"
+
+  build:
+    name: Build and sign multi-arch release
+    needs: verify-ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      api_digest: ${{ steps.api.outputs.digest }}
+      frontend_digest: ${{ steps.frontend.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: api
+        name: Build API for amd64 and arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/distributed-trading-api:${{ github.sha }}
+      - id: frontend
+        name: Build frontend for amd64 and arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend:${{ github.sha }}
+      - name: Scan immutable API image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/distributed-trading-api:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+      - name: Scan immutable frontend image
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+      - name: Generate release SBOMs
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/distributed-trading-api:${{ github.sha }}
+          format: spdx-json
+          output-file: api.sbom.spdx.json
+          upload-artifact: false
+      - name: Generate frontend SBOM
+        uses: anchore/sbom-action@v0.24.0
+        with:
+          image: ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend:${{ github.sha }}
+          format: spdx-json
+          output-file: frontend.sbom.spdx.json
+          upload-artifact: false
+      - uses: sigstore/cosign-installer@v3.7.0
+      - name: Sign immutable manifest digests
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes "ghcr.io/${{ github.repository_owner }}/distributed-trading-api@${{ steps.api.outputs.digest }}"
+          cosign sign --yes "ghcr.io/${{ github.repository_owner }}/distributed-trading-frontend@${{ steps.frontend.outputs.digest }}"
+      - name: Write release manifest
+        env:
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          FRONTEND_DIGEST: ${{ steps.frontend.outputs.digest }}
+        run: |
+          jq -n --arg commit "$GITHUB_SHA" --arg api "$API_DIGEST" --arg frontend "$FRONTEND_DIGEST" --arg owner "$GITHUB_REPOSITORY_OWNER" '{commit_sha:$commit,api_digest:$api,frontend_digest:$frontend,api_image:("ghcr.io/" + $owner + "/distributed-trading-api@" + $api),frontend_image:("ghcr.io/" + $owner + "/distributed-trading-frontend@" + $frontend)}' > release.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: local-release-${{ github.sha }}
+          path: |
+            release.json
+            api.sbom.spdx.json
+            frontend.sbom.spdx.json
+          retention-days: 7

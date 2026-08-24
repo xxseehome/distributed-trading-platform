@@ -1,0 +1,104 @@
+name: Promote local release
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful build-release-local run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-trading-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote to ${{ matrix.environment }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: ${{ matrix.environment }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        environment: [dev, test, perf, staging, production, production-dr]
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local runner
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Download release manifest
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          pattern: local-release-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+      - name: Configure production kubeconfig
+        run: |
+          set -euo pipefail
+          test -s "$GITHUB_WORKSPACE/.runtime/kubeconfigs/production"
+          echo "LOCAL_PRODUCTION_KUBECONFIG=$GITHUB_WORKSPACE/.runtime/kubeconfigs/production" >> "$GITHUB_ENV"
+      - name: Apply exact immutable digests
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          bash scripts/local-promote.sh "$ENVIRONMENT" "$RUNNER_TEMP/release/release.json"
+      - name: Verify deployment
+        env:
+          ENVIRONMENT: ${{ matrix.environment }}
+        run: |
+          set -euo pipefail
+          [[ "$ENVIRONMENT" == production-dr ]] && exit 0
+          for deployment in trading-api trading-worker frontend; do
+            kubectl -n "$ENVIRONMENT" rollout status "deploy/$deployment" --timeout=10m
+          done
+
+  record-state:
+    name: Record immutable environment state
+    needs: promote
+    if: ${{ needs.promote.result == 'success' && github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download release manifest
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ inputs.source_run_id }}
+          github-token: ${{ github.token }}
+          pattern: local-release-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release
+      - name: Commit environment-state branch
+        run: |
+          set -euo pipefail
+          if git fetch origin environment-state; then
+            git switch --track origin/environment-state
+          else
+            git switch --orphan environment-state
+            git rm -rf .
+          fi
+          mkdir -p .deployment-state
+          jq --arg run "$GITHUB_RUN_ID" --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '. + {promotion_run_id: $run, promoted_at: $timestamp}' \
+            "$RUNNER_TEMP/release/release.json" > .deployment-state/release.json
+          cat > .deployment-state/environments.json <<'EOF'
+          {"order":["dev","test","perf","staging","production","production-dr"],"status":"promoted-sequentially"}
+          EOF
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .deployment-state
+          git commit -m "chore: record local immutable promotion" || true
+          git push origin HEAD:environment-state

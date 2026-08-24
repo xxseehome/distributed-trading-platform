@@ -20,11 +20,11 @@ spec:
           type: RuntimeDefault
       containers:
         - name: create-topics
-          image: bitnami/kafka:3.9
+          image: dockerproxy.net/apache/kafka:3.9.0
           command: ["bash", "-ec"]
           args:
             - |
-              until kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do sleep 5; done
+              until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do sleep 5; done
               if [ "$NAMESPACE" = "nonprod-platform" ]; then
                 environments="dev test perf staging"
               else
@@ -32,7 +32,7 @@ spec:
               fi
               for environment in $environments; do
                 for topic in orders.accepted.v1 executions.v1 orders.rejected.v1 orders.dlq.v1; do
-                  kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
+                  /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists \
                     --topic "${environment}.${topic}" --partitions 3 --replication-factor "${REPLICATION_FACTOR}"
                 done
               done
@@ -45,6 +45,8 @@ spec:
               value: "1"
           securityContext:
             allowPrivilegeEscalation: false
+            runAsUser: 1000
+            runAsGroup: 1000
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]

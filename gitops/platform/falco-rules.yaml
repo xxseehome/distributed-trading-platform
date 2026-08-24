@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trading-falco-rules
+  namespace: falco
+data:
+  trading-rules.yaml: |
+    - rule: Trading container writes outside approved paths
+      desc: Detect unexpected writes by application containers.
+      condition: container and evt.type in (open, openat, creat) and fd.name startswith /etc
+      output: "trading unexpected filesystem write (container=%container.name file=%fd.name)"
+      priority: WARNING
+      tags: [container, filesystem, trading]
+    - rule: Trading process spawns a shell
+      desc: Detect an interactive shell spawned by an application container.
+      condition: spawned_process and proc.name in (sh, bash, zsh) and container
+      output: "trading shell spawned (container=%container.name shell=%proc.name)"
+      priority: WARNING
+      tags: [container, process, trading]

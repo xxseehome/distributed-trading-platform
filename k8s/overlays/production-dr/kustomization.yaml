@@ -9,3 +9,27 @@ labels:
   - pairs:
       platform.example.com/environment: production-dr
       platform.example.com/cluster: beijing-dr
+replicas:
+  # DR is dormant by default.  The DR drill explicitly scales these objects
+  # up after restoring the selected release and backup.
+  - name: trading-api
+    count: 0
+  - name: trading-worker
+    count: 0
+  - name: frontend
+    count: 0
+  - name: redis
+    count: 0
+  - name: redis-sentinel
+    count: 0
+  - name: kafka
+    count: 0
+  - name: postgres
+    count: 0
+patches:
+  - path: kafka-single-node-patch.yaml
+    target:
+      group: apps
+      version: v1
+      kind: StatefulSet
+      name: kafka

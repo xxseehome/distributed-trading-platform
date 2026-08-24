@@ -17,9 +17,36 @@ spec:
     spec:
       serviceAccountName: trading
       securityContext:
-        runAsNonRoot: true
+        # The official PostgreSQL entrypoint needs a one-time root init to
+        # repair ownership on the local-path volume. The database process
+        # itself remains UID 70 and explicitly non-root below.
+        runAsNonRoot: false
+        fsGroup: 70
+        fsGroupChangePolicy: OnRootMismatch
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: init-data-permissions
+          image: postgres:16.4-alpine
+          command: ["sh", "-ec", "chown -R 70:70 /var/lib/postgresql/data /var/run/postgresql"]
+          securityContext:
+            runAsUser: 0
+            runAsGroup: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              add: [CHOWN, FOWNER]
+              drop: [ALL]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 50m, memory: 64Mi}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+            - name: run
+              mountPath: /var/run/postgresql
+            - name: tmp
+              mountPath: /tmp
       containers:
         - name: postgres
           image: postgres:16.4-alpine
@@ -39,6 +66,9 @@ spec:
                   optional: true
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
@@ -59,8 +89,12 @@ spec:
               mountPath: /var/lib/postgresql/data
             - name: tmp
               mountPath: /tmp
+            - name: run
+              mountPath: /var/run/postgresql
       volumes:
         - name: tmp
+          emptyDir: {}
+        - name: run
           emptyDir: {}
   volumeClaimTemplates:
     - metadata:

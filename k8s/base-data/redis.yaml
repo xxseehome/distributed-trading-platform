@@ -37,6 +37,8 @@ spec:
               containerPort: 6379
           securityContext:
             allowPrivilegeEscalation: false
+            runAsUser: 999
+            runAsGroup: 1000
             readOnlyRootFilesystem: true
             capabilities:
               drop: [ALL]
@@ -73,6 +75,7 @@ metadata:
     app.kubernetes.io/name: redis
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app.kubernetes.io/name: redis
   ports:

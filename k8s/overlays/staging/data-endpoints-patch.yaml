@@ -14,6 +14,8 @@ spec:
               value: kafka.nonprod-platform.svc.cluster.local:9092
             - name: POSTGRES_HOST
               value: postgres.nonprod-platform.svc.cluster.local
+            - name: TRADING_SCHEMA
+              value: staging
 ---
 apiVersion: apps/v1
 kind: Deployment

@@ -1,0 +1,52 @@
+name: Local incident monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      summary:
+        description: Short incident summary
+        required: true
+        type: string
+      environment:
+        description: Environment to inspect
+        required: true
+        default: production
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  collect:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: local-incident
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local runner
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Collect Kubernetes diagnostics
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/incident"
+          kubectl get nodes -o wide > "$RUNNER_TEMP/incident/nodes.txt"
+          kubectl -n "$ENVIRONMENT" get pods,svc,deploy -o wide > "$RUNNER_TEMP/incident/workloads.txt"
+          kubectl -n "$ENVIRONMENT" get events --sort-by=.lastTimestamp > "$RUNNER_TEMP/incident/events.txt"
+      - name: Create incident issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ inputs.summary }}
+          ENVIRONMENT: ${{ inputs.environment }}
+        run: |
+          gh issue create \
+            --title "Incident: $SUMMARY" \
+            --body "Environment: $ENVIRONMENT\nRun: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID\nDiagnostics are attached as an artifact."
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-incident-${{ github.run_id }}
+          path: ${{ runner.temp }}/incident
+          retention-days: 7

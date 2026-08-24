@@ -1,0 +1,30 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: observability
+resources:
+  - prometheus-rules.yaml
+  - trading-api-servicemonitor.yaml
+configMapGenerator:
+  - name: kube-prometheus-values
+    files:
+      - values.yaml=kube-prometheus-values.yaml
+  - name: loki-values
+    files:
+      - values.yaml=loki-values.yaml
+  - name: tempo-values
+    files:
+      - values.yaml=tempo-values.yaml
+  - name: grafana-dashboard-trading-overview
+    files:
+      - trading-overview.json=trading-overview.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+  - name: grafana-datasources-trading
+    files:
+      - datasources.yaml=grafana-datasources.yaml
+    options:
+      labels:
+        grafana_datasource: "1"
+generatorOptions:
+  disableNameSuffixHash: true

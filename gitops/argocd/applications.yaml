@@ -1,0 +1,50 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: trading-applications
+  namespace: argocd
+spec:
+  sourceRepos:
+    - '*'
+  destinations:
+    - namespace: '*'
+      server: '*'
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trading-production
+  namespace: argocd
+spec:
+  project: trading-applications
+  source:
+    repoURL: https://github.com/xxseehome/distributed-trading-platform.git
+    targetRevision: main
+    path: k8s/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: trading-production-dr
+  namespace: argocd
+spec:
+  project: trading-applications
+  source:
+    repoURL: https://github.com/xxseehome/distributed-trading-platform.git
+    targetRevision: main
+    path: k8s/overlays/production-dr
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production-dr
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true

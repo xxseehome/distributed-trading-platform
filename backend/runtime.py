@@ -71,6 +71,12 @@ class Runtime:
         self._redis_ready = False
         self._kafka_ready = False
         self._postgres_schema = os.getenv("TRADING_SCHEMA", "trading")
+        self._redis_key_prefix = os.getenv("REDIS_KEY_PREFIX", self.environment)
+
+    def _redis_key(self, key: str) -> str:
+        """Prefix shared Redis keys so environments cannot overwrite each other."""
+
+        return f"{self._redis_key_prefix}:{key}"
 
     async def start(self) -> None:
         if not self.cluster_mode:
@@ -157,7 +163,7 @@ class Runtime:
         if not self.cluster_mode or self.redis is None:
             return self._kill_switch
         try:
-            return (await self.redis.get("risk:kill-switch")) == "1"
+            return (await self.redis.get(self._redis_key("risk:kill-switch"))) == "1"
         except Exception as exc:
             raise DependencyUnavailable("Redis is unavailable") from exc
 
@@ -166,7 +172,7 @@ class Runtime:
             if self.redis is None or not self._redis_ready:
                 raise DependencyUnavailable("Redis is unavailable")
             try:
-                await self.redis.set("risk:kill-switch", "1" if enabled else "0")
+                await self.redis.set(self._redis_key("risk:kill-switch"), "1" if enabled else "0")
             except Exception as exc:
                 raise DependencyUnavailable("Redis is unavailable") from exc
         self._kill_switch = enabled
@@ -193,7 +199,7 @@ class Runtime:
                 raise IdempotencyConflict("idempotency key reused with different request")
             return self._orders.get(existing[1])
         try:
-            raw = await self.redis.get(f"idem:{key}")
+            raw = await self.redis.get(self._redis_key(f"idem:{key}"))
             if raw is None:
                 return None
             value = json.loads(raw)
@@ -216,9 +222,11 @@ class Runtime:
                 self._orders[order["order_id"]] = order
             return
         try:
-            await self.redis.set(f"order:{order['order_id']}", json.dumps(order), ex=86400)
             await self.redis.set(
-                f"idem:{key}",
+                self._redis_key(f"order:{order['order_id']}"), json.dumps(order), ex=86400
+            )
+            await self.redis.set(
+                self._redis_key(f"idem:{key}"),
                 json.dumps({"fingerprint": fingerprint, "order_id": order["order_id"]}),
                 ex=86400,
             )
@@ -231,7 +239,7 @@ class Runtime:
         redis_error: Exception | None = None
         if self.redis is not None:
             try:
-                raw = await self.redis.get(f"order:{order_id}")
+                raw = await self.redis.get(self._redis_key(f"order:{order_id}"))
                 if raw:
                     return json.loads(raw)
             except Exception as exc:
@@ -302,7 +310,7 @@ class Runtime:
     async def market_data(self, symbol: str) -> dict[str, Any]:
         if self.cluster_mode and self.redis is not None:
             try:
-                raw = await self.redis.get(f"market:{symbol}")
+                raw = await self.redis.get(self._redis_key(f"market:{symbol}"))
                 if raw:
                     return json.loads(raw)
             except Exception as exc:

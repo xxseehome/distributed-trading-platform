@@ -46,6 +46,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: POSTGRES_HOST
               value: postgres
+            - name: POSTGRES_PORT
+              value: "5432"
             - name: POSTGRES_DB
               value: trading
             - name: POSTGRES_USER
@@ -68,11 +70,11 @@ spec:
             limits: {cpu: 500m, memory: 512Mi}
           readinessProbe:
             httpGet: {path: /readyz, port: health}
-            initialDelaySeconds: 10
+            initialDelaySeconds: 20
             periodSeconds: 5
             failureThreshold: 6
           livenessProbe:
             httpGet: {path: /healthz, port: health}
-            initialDelaySeconds: 20
+            initialDelaySeconds: 60
             periodSeconds: 10
-
+            failureThreshold: 6

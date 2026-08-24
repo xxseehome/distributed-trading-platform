@@ -1,0 +1,47 @@
+name: Local resilience drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: Fault scenario requiring the local-resilience approval
+        required: true
+        type: choice
+        options: [server, pod, all-pods, kafka, redis, postgres]
+      base_url:
+        description: Production URL used for the health probe
+        required: true
+        default: http://127.0.0.1:8080
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-trading-platform
+  cancel-in-progress: false
+
+jobs:
+  drill:
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: local-resilience
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local runner
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Run approved fault drill
+        env:
+          ALLOW_LOCAL_FAULT: "true"
+          SCENARIO: ${{ inputs.scenario }}
+          BASE_URL: ${{ inputs.base_url }}
+          ROUTE_HOST: bookstore.example.invalid
+        run: bash scripts/local-resilience.sh "$SCENARIO" "$BASE_URL"
+      - name: Upload drill evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-resilience-${{ github.run_id }}
+          path: .runtime/evidence
+          retention-days: 7

@@ -1,0 +1,32 @@
+name: Approved local operations
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Operation requiring local-ops approval
+        required: true
+        type: choice
+        options: [kill-switch-on, kill-switch-off, restart-api, consumer-resume]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-trading-platform
+  cancel-in-progress: false
+
+jobs:
+  operate:
+    name: Approved ${{ inputs.action }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: local-ops
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local runner
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Execute approved operation
+        run: bash scripts/local-ops.sh "${{ inputs.action }}"

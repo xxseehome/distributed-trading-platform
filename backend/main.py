@@ -7,6 +7,10 @@ the asynchronous worker and is intentionally not part of ``/readyz``.
 
 from __future__ import annotations
 
+import json
+import logging
+import os
+import re
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from time import perf_counter
@@ -15,7 +19,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import Response
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
 
 from backend.models import (
     SUPPORTED_SYMBOLS,
@@ -40,6 +44,26 @@ ORDER_REJECTED = Counter(
 ORDER_LATENCY = Histogram(
     "trading_order_acceptance_seconds", "Order acceptance latency", ["environment"]
 )
+BUILD_INFO = Gauge(
+    "trading_build_info",
+    "Build metadata for the running application",
+    ["environment", "commit_sha", "image_digest"],
+)
+LOG = logging.getLogger("trading-api")
+TRACEPARENT_RE = re.compile(r"^00-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$")
+
+
+def _trace_id(request: Request) -> str:
+    """Return the W3C trace id, accepting the legacy demo header as fallback."""
+
+    candidate = request.headers.get("traceparent", "").lower()
+    match = TRACEPARENT_RE.fullmatch(candidate)
+    if match and match.group(1) != "0" * 32 and match.group(2) != "0" * 16:
+        return match.group(1)
+    legacy = request.headers.get("X-Trace-Id", "").lower()
+    if re.fullmatch(r"[0-9a-f]{32}", legacy):
+        return legacy
+    return uuid4().hex
 
 
 @asynccontextmanager
@@ -50,6 +74,60 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="Low-Latency Trading Operations Lab", version="1.0.0", lifespan=lifespan)
+
+
+@app.on_event("startup")
+async def publish_build_info() -> None:
+    BUILD_INFO.labels(
+        runtime.environment,
+        os.getenv("COMMIT_SHA", "unknown"),
+        os.getenv("IMAGE_DIGEST", "unknown"),
+    ).set(1)
+
+
+@app.middleware("http")
+async def trace_and_log(request: Request, call_next):
+    trace_id = _trace_id(request)
+    span_id = uuid4().hex[:16]
+    request.state.trace_id = trace_id
+    started = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        LOG.exception(
+            json.dumps(
+                {
+                    "event": "http_request_failed",
+                    "environment": runtime.environment,
+                    "commit_sha": os.getenv("COMMIT_SHA", "unknown"),
+                    "image_digest": os.getenv("IMAGE_DIGEST", "unknown"),
+                    "trace_id": trace_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                },
+                separators=(",", ":"),
+            )
+        )
+        raise
+    response.headers["traceparent"] = f"00-{trace_id}-{span_id}-01"
+    response.headers["x-trace-id"] = trace_id
+    LOG.info(
+        json.dumps(
+            {
+                "event": "http_request",
+                "environment": runtime.environment,
+                "commit_sha": os.getenv("COMMIT_SHA", "unknown"),
+                "image_digest": os.getenv("IMAGE_DIGEST", "unknown"),
+                "trace_id": trace_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status": response.status_code,
+                "duration_ms": round((perf_counter() - started) * 1000, 3),
+            },
+            separators=(",", ":"),
+        )
+    )
+    return response
 
 
 @app.get("/healthz")
@@ -105,7 +183,7 @@ async def create_order(
         if existing is not None:
             return existing
         order_id = f"order-{uuid4().hex[:12]}"
-        trace_id = http_request.headers.get("X-Trace-Id", uuid4().hex)
+        trace_id = getattr(http_request.state, "trace_id", uuid4().hex)
         order = {
             "order_id": order_id,
             "client_order_id": request.client_order_id,

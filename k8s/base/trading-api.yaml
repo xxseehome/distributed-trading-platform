@@ -41,6 +41,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: REDIS_SENTINEL_SERVICE
               value: redis-sentinel
+            - name: REDIS_SENTINEL_PORT
+              value: "26379"
             - name: REDIS_MASTER_NAME
               value: mymaster
             - name: KAFKA_BOOTSTRAP_SERVERS
@@ -51,6 +53,8 @@ spec:
                   fieldPath: metadata.namespace
             - name: POSTGRES_HOST
               value: postgres
+            - name: POSTGRES_PORT
+              value: "5432"
             - name: POSTGRES_DB
               value: trading
             - name: POSTGRES_USER
@@ -102,4 +106,3 @@ spec:
     - name: http
       port: 8000
       targetPort: http
-

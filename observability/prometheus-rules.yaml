@@ -1,0 +1,55 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: trading-slo-rules
+  namespace: observability
+  labels:
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: distributed-trading
+spec:
+  groups:
+    - name: trading.acceptance.slo
+      interval: 30s
+      rules:
+        - alert: TradingOrderAcceptanceAvailabilityLow
+          expr: |
+            (
+              1 - (
+                sum(rate(trading_orders_rejected_total{environment="production"}[5m]))
+                /
+                clamp_min(
+                  sum(rate(trading_orders_accepted_total{environment="production"}[5m]))
+                  + sum(rate(trading_orders_rejected_total{environment="production"}[5m])),
+                  1
+                )
+              )
+            ) < 0.999
+          for: 10m
+          labels:
+            severity: warning
+            service: trading-api
+          annotations:
+            summary: Production order-acceptance availability is below 99.9%
+            description: The local low-load experiment is below the 99.9% target for ten minutes.
+        - alert: TradingOrderAcceptanceLatencyHigh
+          expr: |
+            histogram_quantile(
+              0.95,
+              sum(rate(trading_order_acceptance_seconds_bucket{environment="production"}[5m])) by (le)
+            ) > 0.2
+          for: 10m
+          labels:
+            severity: warning
+            service: trading-api
+          annotations:
+            summary: Production order-acceptance p95 is above 200ms
+            description: The local experiment target is p95 below 200ms; this is not an HFT performance claim.
+        - alert: TradingApiTargetDown
+          expr: up{job="trading-api", namespace="production"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            service: trading-api
+          annotations:
+            summary: Production trading API metrics target is down
+            description: Prometheus cannot scrape the production trading API metrics endpoint.

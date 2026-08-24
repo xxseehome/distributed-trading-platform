@@ -21,9 +21,9 @@ spec:
       containers:
         - name: kafka
           env:
-            - name: KAFKA_CFG_CONTROLLER_QUORUM_VOTERS
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
               value: 0@kafka-0.kafka:9093,1@kafka-1.kafka:9093,2@kafka-2.kafka:9093
-            - name: KAFKA_CFG_DEFAULT_REPLICATION_FACTOR
+            - name: KAFKA_DEFAULT_REPLICATION_FACTOR
               value: "3"
-            - name: KAFKA_CFG_MIN_INSYNC_REPLICAS
+            - name: KAFKA_MIN_INSYNC_REPLICAS
               value: "2"

@@ -30,6 +30,13 @@ def test_health_readiness_and_metrics():
     assert "trading_orders_accepted_total" in client.get("/metrics").text
 
 
+def test_http_traceparent_is_propagated():
+    traceparent = "00-0123456789abcdef0123456789abcdef-0123456789abcdef-01"
+    response = client.get("/healthz", headers={"traceparent": traceparent})
+    assert response.status_code == 200
+    assert response.headers["traceparent"].startswith("00-0123456789abcdef0123456789abcdef-")
+
+
 def test_market_data_is_deterministic():
     response = client.get("/api/market-data/alpha")
     assert response.status_code == 200

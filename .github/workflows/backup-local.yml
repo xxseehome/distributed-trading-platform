@@ -1,0 +1,34 @@
+name: Local recovery backup
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-trading-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: PostgreSQL and Kafka recovery metadata
+    if: ${{ github.ref_protected == true }}
+    runs-on: [self-hosted, macOS, ARM64, trading-local-arm64]
+    environment: local-backup
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare local runner
+        run: ansible-playbook -i localhost, -c local ansible/local-bootstrap.yml
+      - name: Generate approved recovery backup
+        run: bash scripts/local-backup.sh
+      - name: Upload seven-day recovery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-recovery-backup-${{ github.run_id }}
+          path: .runtime/backups
+          retention-days: 7
