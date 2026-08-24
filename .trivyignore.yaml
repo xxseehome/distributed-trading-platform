@@ -1,0 +1,11 @@
+misconfigurations:
+  # Apache Kafka 3.9 generates its KRaft configuration below /opt/kafka/config
+  # during startup. The container remains non-root, drops all capabilities,
+  # and is limited to the three rendered Kafka overlays listed below.
+  - id: AVD-KSV-0014
+    paths:
+      - nonprod-data.yaml
+      - production.yaml
+      - production-dr.yaml
+    expired_at: 2026-12-31
+    statement: Kafka startup writes generated KRaft configuration; review before expiry.
