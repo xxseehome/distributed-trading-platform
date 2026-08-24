@@ -28,6 +28,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: production
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
 ---
@@ -43,8 +46,11 @@ spec:
     targetRevision: main
     path: k8s/overlays/production-dr
   destination:
-    server: https://kubernetes.default.svc
+    server: https://dr.vcluster-dr
     namespace: production-dr
   syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true

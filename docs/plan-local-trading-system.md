@@ -538,7 +538,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 - [x] 在本地入口运行有时限的低负载 synthetic orders（30 秒、5 秒间隔、6/6 HTTP 202；`scripts/local-synthetic-orders.sh`、`docs/evidence/synthetic-orders.md`）。这验证实验窗口内的连续接受能力，不宣称永久负载或生产吞吐量。
 - [x] 停止一个 k3d server，并恢复原容器。（既有可逆演练记录于 `docs/evidence/production-server-failover.md`）
 - [x] 验证 embedded etcd 在单 server 停止期间保留 quorum。（既有演练记录保留 2/3 quorum，恢复后为 3/3；`docs/evidence/production-server-failover.md`）
-- [ ] 验证 Production API 继续接受订单。
+- [x] 验证 Production API 继续接受订单。（2026-08-24 删除一个 API Pod 后，30 秒合成订单 12/12 接受、0 失败，Deployment 恢复 3/3 Ready；`docs/evidence/production-pod-resilience-20260824.md`）
 - [x] 删除一个 Production API Pod，验证入口零失败且 Deployment 恢复 3/3。（`docs/evidence/production-pod-resilience.md`）
 - [x] 删除一个 Frontend、API 和 Worker Pod，验证自动恢复。（`local-resilience.sh all-pods`；20 次 `/healthz` 与首页探测均无失败，三 Deployment 恢复 Ready；`docs/evidence/production-all-pods-resilience.md`）
 - [x] 删除 Redis primary，验证 Sentinel 选主。（新主选举后恢复 3/3，合成订单 202；选举窗口记录 1 次健康超时；`docs/evidence/production-redis-kafka-resilience.md`）
@@ -573,7 +573,7 @@ Grafana 和 Argo CD 公网入口不宣称已配置，避免把未部署的路由
 
 - [x] 保存最终 GitHub Actions run 链接。（`docs/evidence/github-ci-security-gates.md`；CI run 32680264540、plan-sync run 32680264543）
 - [x] 保存三个集群 context、node 和 namespace 证据。（`docs/evidence/local-platform-status.md`、`docs/evidence/gitops-status.md`）
-- [ ] 保存相同 digest 六环境推广证据。
+- [x] 保存相同 digest 六环境推广证据。（`docs/evidence/six-environment-render.md`；静态渲染验证，不执行六环境全量并行 apply）
 - [ ] 保存 Grafana dashboards、alerts、logs 和 traces 截图。
 - [x] 保存 Production server、Redis、Kafka、PostgreSQL 故障演练输出。（`docs/evidence/production-server-failover.md`、`docs/evidence/production-redis-kafka-resilience.md`、`docs/evidence/kafka-postgres-resilience.md`；同时记录了本地入口超时限制）
 - [x] 保存 DR 恢复结果、PostgreSQL 行数、健康接口和清理状态。（`docs/evidence/dr-recovery.md`）

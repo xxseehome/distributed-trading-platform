@@ -43,7 +43,7 @@ export KUBECONFIG="$production_kubeconfig"
 connect_vcluster() {
   local name="$1" namespace="$2" output="$3"
   : > "$output"
-  "$(tool vcluster)" connect "$name" --namespace "$namespace" --insecure \
+  "$(tool vcluster)" connect "$name" --namespace "$namespace" \
     --print --background-proxy=false > "$output" 2>"$output.log" &
   vcluster_pid=$!
   for _ in {1..60}; do
@@ -85,6 +85,33 @@ YAML
       --clusterrole=admin --serviceaccount=kube-system:argocd-manager \
       --namespace="$namespace" --dry-run=client -o yaml \
       | KUBECONFIG="$kubeconfig" kubectl apply -f - >/dev/null
+    # Argo needs read-only discovery for CRDs in the managed namespace. Keep
+    # write permissions on the existing namespace admin RoleBinding only.
+    KUBECONFIG="$kubeconfig" kubectl apply --validate=false -f - >/dev/null <<YAML
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-read-namespaced-resources
+  namespace: $namespace
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-read-namespaced-resources
+  namespace: $namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-read-namespaced-resources
+subjects:
+  - kind: ServiceAccount
+    name: argocd-manager
+    namespace: kube-system
+YAML
   done
 }
 
@@ -118,8 +145,8 @@ cluster_secret \
   "$production_token" \
   "$production_ca"
 
-for item in "nonprod:non-production:vcluster-nonprod:nonprod.vcluster-nonprod.svc.cluster.local:local-non-production" \
-            "dr:dr:vcluster-dr:dr.vcluster-dr.svc.cluster.local:local-dr"; do
+for item in "nonprod:non-production:vcluster-nonprod:nonprod.vcluster-nonprod:local-non-production" \
+            "dr:dr:vcluster-dr:dr.vcluster-dr:local-dr"; do
   IFS=: read -r name display_name namespace server secret_name <<< "$item"
   kubeconfig="$tmp_dir/$name.kubeconfig"
   connect_vcluster "$name" "$namespace" "$kubeconfig"
@@ -133,6 +160,12 @@ for item in "nonprod:non-production:vcluster-nonprod:nonprod.vcluster-nonprod.sv
   ca_data="$(KUBECONFIG="$kubeconfig" kubectl config view --raw \
     -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
   cluster_secret "$secret_name" "$display_name" "https://$server" "$token" "$ca_data"
+  # Keep vCluster registrations namespaced and read-only at the discovery
+  # boundary. Argo can manage only the application namespace and cannot
+  # attempt cluster-scoped resources such as Namespace objects.
+  kubectl -n argocd patch secret "$secret_name" --type=merge -p \
+    "{\"stringData\":{\"namespaces\":\"$manager_namespaces\",\"clusterResources\":\"false\"}}" \
+    >/dev/null
   stop_vcluster
 done
 

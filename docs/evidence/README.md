@@ -10,6 +10,7 @@ Store only redacted acceptance evidence here. Planned evidence includes:
 - observability capability mapping (`../observability-splunk-mapping.md`);
 - approved local operations (`approved-ops.md`);
 - local Pod self-healing and server-stop recovery (`production-pod-resilience.md`, `production-server-failover.md`);
+- 2026-08-24 API Pod self-healing and order continuity (`production-pod-resilience-20260824.md`);
 - bounded synthetic order continuity (`synthetic-orders.md`);
 - active local Traefik entrypoint (`local-entrypoint.md`);
 - production manifest apply and bootstrap-image boundary (`manifest-apply.md`);
@@ -24,5 +25,6 @@ Store only redacted acceptance evidence here. Planned evidence includes:
 - staging Pod replacement resilience test (`resilience.yml`, with approved `KUBECONFIG_B64` and a redacted staging URL);
 - CLB health, `/healthz`, market data and order acceptance;
 - Grafana SLO, Kafka lag, Redis failover and PostgreSQL projection lag.
+- current metrics, Kafka lag, Alertmanager, logs/traces boundary and Incident Issue (`observability-closeout.md`);
 
 Do not store credentials, tokens, private keys, kubeconfigs or unredacted account IDs.

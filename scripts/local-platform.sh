@@ -80,6 +80,31 @@ ensure_prometheus_webhook_secret() {
   trap - RETURN
 }
 
+set_argocd_resource_bounds() {
+  local resource_kind="$1"
+  local resource_name="$2"
+  local container_name="$3"
+  local requests="$4"
+  local limits="$5"
+  if kubectl -n argocd get "$resource_kind" "$resource_name" >/dev/null 2>&1; then
+    kubectl -n argocd set resources "$resource_kind/$resource_name" \
+      --containers="$container_name" --requests="$requests" --limits="$limits"
+  fi
+}
+
+ensure_argocd_resource_bounds() {
+  # Gatekeeper requires requests/limits on every non-exempt Pod. Keep the
+  # GitOps control plane lightweight instead of weakening the admission rule.
+  set_argocd_resource_bounds deployment argocd-repo-server argocd-repo-server \
+    cpu=100m,memory=128Mi cpu=500m,memory=512Mi
+  set_argocd_resource_bounds statefulset argocd-application-controller argocd-application-controller \
+    cpu=100m,memory=128Mi cpu=500m,memory=512Mi
+  set_argocd_resource_bounds deployment argocd-applicationset-controller argocd-applicationset-controller \
+    cpu=25m,memory=64Mi cpu=200m,memory=256Mi
+  set_argocd_resource_bounds deployment argocd-notifications-controller argocd-notifications-controller \
+    cpu=25m,memory=64Mi cpu=200m,memory=256Mi
+}
+
 install_platform_controllers() {
   export KUBECONFIG="$production_kubeconfig"
   kubectl apply -k "$repo_root/gitops/platform"
@@ -98,6 +123,7 @@ install_platform_controllers() {
     fi
   fi
   # CRDs must exist before Flux and Argo custom resources are applied.
+  ensure_argocd_resource_bounds
   kubectl -n argocd rollout status deployment/argocd-server --timeout=10m
   kubectl apply -k "$repo_root/observability"
   ensure_prometheus_webhook_secret
