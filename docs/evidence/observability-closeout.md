@@ -16,6 +16,11 @@ API Pod resilience drill.
   clock/IO warnings) remain visible and are not suppressed.
 - PrometheusRule `trading-slo-rules` is present with availability, latency and
   API target-down rules.
+- Post-merge smoke verification returned HTTP 200 for `/healthz`, `/readyz`,
+  `/metrics` and `/api/market-data/ALPHA`; one valid synthetic order returned
+  HTTP 202. Kafka `production-projection` lag remained `0` after the order.
+- Post-merge workload status was Frontend/API/Worker `3/3` Ready, Kafka `3/3`,
+  Redis `3/3`, and PostgreSQL `1/1` in Production.
 - The production Kafka overlay keeps the broker non-root and drops all Linux
   capabilities; its root filesystem is intentionally writable because the
   Apache Kafka image generates KRaft configuration under
